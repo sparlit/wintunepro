@@ -1,0 +1,643 @@
+﻿[
+    {
+        "TotalScore":  79,
+        "SpaceRecovered":  0,
+        "SessionId":  "3b0c1a68facb",
+        "Date":  "2026-04-02 11:11:27",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  10
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  12
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  79,
+        "SpaceRecovered":  0,
+        "SessionId":  "6554daed4868",
+        "Date":  "2026-04-02 00:52:37",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  10
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  12
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  76,
+        "SpaceRecovered":  0,
+        "SessionId":  "1ac7f131f804",
+        "Date":  "2026-04-02 00:49:46",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  7
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  12
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  76,
+        "SpaceRecovered":  0,
+        "SessionId":  "1ac7f131f804",
+        "Date":  "2026-04-02 00:49:46",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  7
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  12
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  76,
+        "SpaceRecovered":  0,
+        "SessionId":  "d7fda1e0ec4c",
+        "Date":  "2026-04-02 00:30:05",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  7
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  12
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  76,
+        "SpaceRecovered":  0,
+        "SessionId":  "d7fda1e0ec4c",
+        "Date":  "2026-04-02 00:30:05",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  7
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  12
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  76,
+        "SpaceRecovered":  0,
+        "SessionId":  "e4f91e36ec6a",
+        "Date":  "2026-04-02 00:26:19",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  7
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  12
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  74,
+        "SpaceRecovered":  0,
+        "SessionId":  "0845d6606929",
+        "Date":  "2026-04-01 10:37:47",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  7
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  10
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  74,
+        "SpaceRecovered":  0,
+        "SessionId":  "636f441938a3",
+        "Date":  "2026-04-01 02:10:55",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  7
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  10
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  76,
+        "SpaceRecovered":  0,
+        "SessionId":  "861694f1808f",
+        "Date":  "2026-04-01 02:04:07",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  7
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  12
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  80,
+        "SpaceRecovered":  0,
+        "SessionId":  "9e7092e85f88",
+        "Date":  "2026-03-31 22:29:34",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  7
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  10
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  11
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "B",
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  73,
+        "SpaceRecovered":  0,
+        "SessionId":  "7d03bcc2b042",
+        "Date":  "2026-03-27 23:35:46",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  6
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  10
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  73,
+        "SpaceRecovered":  0,
+        "SessionId":  "8af686dfaeb8",
+        "Date":  "2026-03-27 22:11:42",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  6
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  10
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  73,
+        "SpaceRecovered":  0,
+        "SessionId":  "c1f3803044cc",
+        "Date":  "2026-03-27 20:47:24",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  6
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  10
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  73,
+        "SpaceRecovered":  0,
+        "SessionId":  "8136757d9838",
+        "Date":  "2026-03-27 18:12:26",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  6
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  5
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  10
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    },
+    {
+        "TotalScore":  79,
+        "SpaceRecovered":  0,
+        "SessionId":  "29d52024cb95",
+        "Date":  "2026-03-26 21:28:41",
+        "Categories":  {
+                           "Privacy":  {
+                                           "MaxScore":  10,
+                                           "Score":  6
+                                       },
+                           "Security":  {
+                                            "MaxScore":  10,
+                                            "Score":  8
+                                        },
+                           "Startup":  {
+                                           "MaxScore":  15,
+                                           "Score":  14
+                                       },
+                           "Disk":  {
+                                        "MaxScore":  20,
+                                        "Score":  10
+                                    },
+                           "Services":  {
+                                            "MaxScore":  15,
+                                            "Score":  15
+                                        },
+                           "Network":  {
+                                           "MaxScore":  15,
+                                           "Score":  11
+                                       },
+                           "Freshness":  {
+                                             "MaxScore":  15,
+                                             "Score":  15
+                                         }
+                       },
+        "Grade":  [
+                      "C",
+                      "D"
+                  ]
+    }
+]

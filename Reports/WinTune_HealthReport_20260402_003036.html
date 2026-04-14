@@ -1,0 +1,881 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WinTune Pro - Health Report</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #22c55e;
+            --accent-yellow: #eab308;
+            --accent-orange: #f97316;
+            --accent-red: #ef4444;
+            --border-color: #334155;
+            --score-green: #22c55e;
+            --score-yellow: #eab308;
+            --score-orange: #f97316;
+            --score-red: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 0;
+        }
+
+        .report-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Header */
+        .report-header {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            border-bottom: 2px solid var(--accent-blue);
+            margin-bottom: 32px;
+        }
+
+        .report-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .report-header h1 span {
+            color: var(--accent-blue);
+        }
+
+        .report-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-bottom: 16px;
+        }
+
+        .report-meta {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            flex-wrap: wrap;
+        }
+
+        .report-meta span {
+            background: rgba(59, 130, 246, 0.1);
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Executive Summary */
+        .executive-summary {
+            text-align: center;
+            padding: 48px 24px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .score-circle {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            border: 6px solid #eab308;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .score-number {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #eab308;
+            line-height: 1;
+        }
+
+        .score-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .grade-badge {
+            display: inline-block;
+            font-size: 1.5rem;
+            font-weight: 700;
+            padding: 8px 24px;
+            border-radius: 8px;
+            background: #eab308;
+            color: #000;
+            margin-bottom: 16px;
+        }
+
+        .trend-indicator {
+            font-size: 1rem;
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+
+        /* Category Scores */
+        .category-scores {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .category-scores h2 {
+            font-size: 1.25rem;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .category-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 12px;
+        }
+
+        .category-label {
+            width: 160px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .category-bar-bg {
+            flex: 1;
+            height: 24px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .category-bar-fill {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.5s ease;
+        }
+
+        .category-score {
+            width: 60px;
+            text-align: right;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Detailed Breakdown */
+        .detailed-breakdown {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .detailed-breakdown h2 {
+            font-size: 1.25rem;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .detail-category {
+            margin-bottom: 24px;
+        }
+
+        .detail-category h3 {
+            font-size: 1rem;
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+        }
+
+        .category-detail-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            font-size: 0.875rem;
+            gap: 12px;
+        }
+
+        .item-good { background: rgba(34, 197, 94, 0.08); }
+        .item-warning { background: rgba(234, 179, 8, 0.08); }
+        .item-critical { background: rgba(239, 68, 68, 0.08); }
+        .item-neutral { background: rgba(255,255,255,0.03); }
+
+        .item-icon {
+            width: 20px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .item-good .item-icon { color: var(--accent-green); }
+        .item-warning .item-icon { color: var(--accent-yellow); }
+        .item-critical .item-icon { color: var(--accent-red); }
+
+        .item-name {
+            font-weight: 500;
+            color: var(--text-primary);
+            flex-shrink: 0;
+        }
+
+        .item-value {
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+
+        .item-note {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            width: 200px;
+            text-align: right;
+        }
+
+        /* Operations Table */
+        .operations-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .operations-section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .operations-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .operations-table th,
+        .operations-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        .operations-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        .op-success { color: var(--accent-green); font-weight: 600; }
+        .op-failed { color: var(--accent-red); font-weight: 600; }
+
+        /* System Information */
+        .system-info {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .system-info h2 {
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .info-item {
+            display: flex;
+            gap: 8px;
+            font-size: 0.875rem;
+        }
+
+        .info-label {
+            color: var(--text-muted);
+            min-width: 120px;
+            flex-shrink: 0;
+        }
+
+        .info-value {
+            color: var(--text-primary);
+        }
+
+        /* Comparison */
+        .comparison-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .comparison-section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        .comparison-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        .positive { color: var(--accent-green); font-weight: 600; }
+        .negative { color: var(--accent-red); font-weight: 600; }
+        .neutral { color: var(--text-muted); }
+
+        /* Alerts */
+        .alerts-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .alerts-section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .alert {
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-warning {
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+            color: var(--accent-yellow);
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--accent-red);
+        }
+
+        /* Recommendations */
+        .recommendations-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .recommendations-section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .recommendation {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid;
+        }
+
+        .reco-high {
+            background: rgba(239, 68, 68, 0.08);
+            border-left-color: var(--accent-red);
+        }
+
+        .reco-medium {
+            background: rgba(234, 179, 8, 0.08);
+            border-left-color: var(--accent-yellow);
+        }
+
+        .reco-low {
+            background: rgba(59, 130, 246, 0.08);
+            border-left-color: var(--accent-blue);
+        }
+
+        .reco-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .reco-priority {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .reco-high .reco-priority { background: var(--accent-red); color: #000; }
+        .reco-medium .reco-priority { background: var(--accent-yellow); color: #000; }
+        .reco-low .reco-priority { background: var(--accent-blue); color: #fff; }
+
+        .reco-category {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .reco-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .reco-details {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        .report-footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 24px;
+        }
+
+        .report-footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: #fff;
+                color: #1a1a1a;
+            }
+
+            .report-container {
+                max-width: 100%;
+                padding: 0;
+            }
+
+            .report-header {
+                background: #f8f9fa;
+                border-bottom: 2px solid #333;
+            }
+
+            .report-header h1 span {
+                color: #333;
+            }
+
+            .executive-summary,
+            .category-scores,
+            .detailed-breakdown,
+            .operations-section,
+            .system-info,
+            .comparison-section,
+            .alerts-section,
+            .recommendations-section {
+                background: #fff;
+                border: 1px solid #ddd;
+            }
+
+            .score-circle {
+                border-color: #333;
+                background: #fff;
+            }
+
+            .score-number { color: #333; }
+
+            .category-bar-bg {
+                background: #eee;
+            }
+
+            .detail-item {
+                border: 1px solid #eee;
+            }
+
+            :root {
+                --text-primary: #1a1a1a;
+                --text-secondary: #555;
+                --text-muted: #888;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .report-container {
+                padding: 12px;
+            }
+
+            .report-header h1 {
+                font-size: 1.75rem;
+            }
+
+            .report-meta {
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .score-circle {
+                width: 140px;
+                height: 140px;
+            }
+
+            .score-number {
+                font-size: 3rem;
+            }
+
+            .category-row {
+                flex-wrap: wrap;
+            }
+
+            .category-label {
+                width: 100%;
+            }
+
+            .category-bar-bg {
+                flex: 1;
+            }
+
+            .detail-item {
+                flex-wrap: wrap;
+            }
+
+            .item-note {
+                width: 100%;
+                text-align: left;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .reco-header {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <!-- Header -->
+        <div class="report-header">
+            <h1>Win<span>Tune</span> Pro</h1>
+            <div class="report-subtitle">System Health Assessment Report</div>
+            <div class="report-meta">
+                <span>&#128197; 2026-04-02 00:30:05</span>
+                <span>&#128187; DESKTOP-PSI3PBT</span>
+                <span>&#128272; Session: d7fda1e0ec4c</span>
+            </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="executive-summary">
+            <div class="grade-badge">Grade C D</div>
+            <div class="score-circle">
+                <div class="score-number">76</div>
+                <div class="score-label">Health Score</div>
+            </div>
+            <div class="trend-indicator">&#9654; No change</div>
+        </div>
+
+        <!-- Category Scores -->
+        <div class="category-scores">
+            <h2>Category Scores</h2>
+                    <div class="category-row">
+            <div class="category-label">Disk Health</div>
+            <div class="category-bar-bg">
+                <div class="category-bar-fill" style="width:25%;background:#ef4444"></div>
+            </div>
+            <div class="category-score">5/20</div>
+        </div>        <div class="category-row">
+            <div class="category-label">Startup Health</div>
+            <div class="category-bar-bg">
+                <div class="category-bar-fill" style="width:93%;background:#22c55e"></div>
+            </div>
+            <div class="category-score">14/15</div>
+        </div>        <div class="category-row">
+            <div class="category-label">Service Health</div>
+            <div class="category-bar-bg">
+                <div class="category-bar-fill" style="width:100%;background:#22c55e"></div>
+            </div>
+            <div class="category-score">15/15</div>
+        </div>        <div class="category-row">
+            <div class="category-label">Network Health</div>
+            <div class="category-bar-bg">
+                <div class="category-bar-fill" style="width:80%;background:#22c55e"></div>
+            </div>
+            <div class="category-score">12/15</div>
+        </div>        <div class="category-row">
+            <div class="category-label">Privacy Health</div>
+            <div class="category-bar-bg">
+                <div class="category-bar-fill" style="width:70%;background:#eab308"></div>
+            </div>
+            <div class="category-score">7/10</div>
+        </div>        <div class="category-row">
+            <div class="category-label">Security Health</div>
+            <div class="category-bar-bg">
+                <div class="category-bar-fill" style="width:80%;background:#22c55e"></div>
+            </div>
+            <div class="category-score">8/10</div>
+        </div>        <div class="category-row">
+            <div class="category-label">System Freshness</div>
+            <div class="category-bar-bg">
+                <div class="category-bar-fill" style="width:100%;background:#22c55e"></div>
+            </div>
+            <div class="category-score">15/15</div>
+        </div>
+        </div>
+
+        <!-- Detailed Breakdown -->
+        <div class="detailed-breakdown">
+            <h2>Detailed Breakdown</h2>
+                    <div class="detail-category">
+            <h3>Disk Health</h3>
+            <p class="category-detail-desc">System drive (C:) has 10% free space (9.93 GB of 99.27 GB)</p>
+                        <div class="detail-item item-critical">
+                <span class="item-icon">&#10007;</span>
+                <span class="item-name">Disk Free Space</span>
+                <span class="item-value">10%</span>
+                <span class="item-note">Low disk space - action needed</span>
+            </div>
+        </div>        <div class="detail-category">
+            <h3>Startup Health</h3>
+            <p class="category-detail-desc">9 startup items found (1 high-risk)</p>
+                        <div class="detail-item item-good">
+                <span class="item-icon">&#10003;</span>
+                <span class="item-name">Startup Items Count</span>
+                <span class="item-value">9 items</span>
+                <span class="item-note">1 high-risk items</span>
+            </div>            <div class="detail-item item-warning">
+                <span class="item-icon">&#9888;</span>
+                <span class="item-name">RtkAudUService</span>
+                <span class="item-value">Registry</span>
+                <span class="item-note">High-risk startup item</span>
+            </div>
+        </div>        <div class="detail-category">
+            <h3>Service Health</h3>
+            <p class="category-detail-desc">2 unnecessary services running out of 294 total (78 auto-start)</p>
+                        <div class="detail-item item-good">
+                <span class="item-icon">&#10003;</span>
+                <span class="item-name">Unnecessary Services</span>
+                <span class="item-value">2 running</span>
+                <span class="item-note">Out of 294 total services</span>
+            </div>            <div class="detail-item item-warning">
+                <span class="item-icon">&#9888;</span>
+                <span class="item-name">Internet Connection Sharing (ICS)</span>
+                <span class="item-value">Running</span>
+                <span class="item-note">Unnecessary service</span>
+            </div>            <div class="detail-item item-warning">
+                <span class="item-icon">&#9888;</span>
+                <span class="item-name">Windows Search</span>
+                <span class="item-value">Running</span>
+                <span class="item-note">Unnecessary service</span>
+            </div>
+        </div>        <div class="detail-category">
+            <h3>Network Health</h3>
+            <p class="category-detail-desc">Latency: 16ms</p>
+                        <div class="detail-item item-good">
+                <span class="item-icon">&#10003;</span>
+                <span class="item-name">Network Latency</span>
+                <span class="item-value">16ms</span>
+                <span class="item-note">Good connection</span>
+            </div>
+        </div>        <div class="detail-category">
+            <h3>Privacy Health</h3>
+            <p class="category-detail-desc">Privacy settings: telemetry off, minimal diag</p>
+                        <div class="detail-item item-good">
+                <span class="item-icon">&#10003;</span>
+                <span class="item-name">Telemetry</span>
+                <span class="item-value">Disabled</span>
+                <span class="item-note">Telemetry fully disabled</span>
+            </div>            <div class="detail-item item-warning">
+                <span class="item-icon">&#9888;</span>
+                <span class="item-name">Activity History</span>
+                <span class="item-value">Enabled</span>
+                <span class="item-note">Activity tracking active</span>
+            </div>            <div class="detail-item item-good">
+                <span class="item-icon">&#10003;</span>
+                <span class="item-name">Diagnostic Data</span>
+                <span class="item-value">Minimal</span>
+                <span class="item-note">Minimal diagnostic data</span>
+            </div>
+        </div>        <div class="detail-category">
+            <h3>Security Health</h3>
+            <p class="category-detail-desc">Security: Defender active, Firewall on</p>
+                        <div class="detail-item item-good">
+                <span class="item-icon">&#10003;</span>
+                <span class="item-name">Windows Defender</span>
+                <span class="item-value">Active</span>
+                <span class="item-note">Real-time protection enabled</span>
+            </div>            <div class="detail-item item-good">
+                <span class="item-icon">&#10003;</span>
+                <span class="item-name">Windows Firewall</span>
+                <span class="item-value">All profiles enabled</span>
+                <span class="item-note">Firewall is active</span>
+            </div>            <div class="detail-item item-warning">
+                <span class="item-icon">&#9888;</span>
+                <span class="item-name">Windows Updates</span>
+                <span class="item-value">Unknown</span>
+                <span class="item-note">Could not verify update status</span>
+            </div>
+        </div>        <div class="detail-category">
+            <h3>System Freshness</h3>
+            <p class="category-detail-desc">Uptime: 0 days | Pending reboot: False | Pending updates: False</p>
+                        <div class="detail-item item-good">
+                <span class="item-icon">&#10003;</span>
+                <span class="item-name">System Uptime</span>
+                <span class="item-value">0 days</span>
+                <span class="item-note">Fresh system restart</span>
+            </div>            <div class="detail-item item-good">
+                <span class="item-icon">&#10003;</span>
+                <span class="item-name">Pending Reboot</span>
+                <span class="item-value">None</span>
+                <span class="item-note">No pending reboots</span>
+            </div>            <div class="detail-item item-good">
+                <span class="item-icon">&#10003;</span>
+                <span class="item-name">Pending Updates</span>
+                <span class="item-value">Not checked</span>
+                <span class="item-note">Skipped for speed</span>
+            </div>
+        </div>
+        </div>
+
+        
+
+        <!-- System Information -->
+        <div class="system-info">
+            <h2>System Information</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Operating System</span>
+                    <span class="info-value">Microsoft Windows 11 Pro (Build 26200)</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Processor</span>
+                    <span class="info-value">13th Gen Intel(R) Core(TM) i7-13650HX</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Memory</span>
+                    <span class="info-value">23.8 GB</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Storage</span>
+                    <span class="info-value">C: 9.9/99.3 GB free | D: 9.6/26.9 GB free | E: 39.6/300 GB free</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Network</span>
+                    <span class="info-value">Ethernet (Realtek PCIe GbE Family Controller)</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">PowerShell</span>
+                    <span class="info-value">v5.1.26100.7920</span>
+                </div>
+            </div>
+        </div>
+
+        
+
+        
+
+        <div class="recommendations-section"><h2>Recommendations</h2>
+            <div class="recommendation reco-high">
+                <div class="reco-header">
+                    <span class="reco-priority">High</span>
+                    <span class="reco-category">Disk</span>
+                    <span class="reco-title">Free up disk space</span>
+                </div>
+                <div class="reco-details">Your system drive has limited free space. Run disk cleanup, remove temporary files, or uninstall unused programs.</div>
+            </div></div>
+
+
+        <!-- Footer -->
+        <div class="report-footer">
+            <p>Generated by <strong>WinTune Pro</strong> | 2026-04-02 00:30:36</p>
+            <p>This report was generated automatically. Results may vary based on system configuration.</p>
+        </div>
+    </div>
+</body>
+</html>

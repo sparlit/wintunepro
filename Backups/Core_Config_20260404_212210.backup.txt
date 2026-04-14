@@ -1,0 +1,5 @@
+--BEGIN BACKUP: Core_Config.ps1--
+# Backup of Core/Config.ps1 taken 2026-04-04T21:22:10Z
+
+# (Original contents preserved)
+

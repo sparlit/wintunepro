@@ -1,0 +1,44 @@
+# GUI (Dashboard)
+.\WinTune.bat
+
+# Silent quick cleanup
+.\WinTune.ps1 -Silent -QuickCleanup
+
+# Silent full optimization
+.\WinTune.ps1 -Silent -FullOptimization
+
+# Preview mode (no changes)
+.\WinTune.ps1 -Preview
+
+# Run complete system cleanup
+Invoke-MasterCleanAll
+
+# Include privacy data
+Invoke-MasterCleanAll -IncludePrivacy
+
+# Include developer tools cache
+Invoke-MasterCleanAll -IncludeDeveloper
+
+# Include gaming platform cache
+Invoke-MasterCleanAll -IncludeGaming
+
+# Full deep clean everything
+Invoke-MasterCleanAll -IncludePrivacy -IncludeDeveloper -IncludeGaming
+
+# Standard enterprise maintenance
+.\ESMPOS.ps1 -OperationMode FullCycle -OptimizationProfile Performance -CreateRestorePoint
+
+# Emergency repair mode
+.\ESMPOS.ps1 -OperationMode Emergency -Force
+
+# Audit only (no changes)
+.\ESMPOS.ps1 -OperationMode Audit -GenerateReport
+
+# Extreme gaming/workstation optimization
+.\ESMPOS.ps1 -OperationMode Optimize -OptimizationProfile Extreme -Verbose
+
+# Scheduled silent execution
+.\ESMPOS.ps1 -OperationMode FullCycle -Silent -OptimizationProfile Balanced
+
+
+Credential/location note removed from repository. Use your secure local secret manager or an out-of-band handover record instead.

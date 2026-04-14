@@ -1,0 +1,8 @@
+{
+    "ContextMenu":  1,
+    "MenuShowDelay":  "0",
+    "DNSNeg":  0,
+    "Animations":  "0",
+    "DNSMax":  86400,
+    "Telemetry":  0
+}

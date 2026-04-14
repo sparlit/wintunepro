@@ -1,0 +1,987 @@
+#Requires -Version 5.1
+# WinTune Pro - Complete Application with All Features
+param([switch]$TestMode, [switch]$Help)
+
+$ErrorActionPreference = "Continue"
+$script:Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# ============================================================================
+# CORE
+# ============================================================================
+
+function Load-All {
+    $core = @("Config.ps1","Logger.ps1","State.ps1","AppCore.ps1","Helpers.ps1","SafetyNet.ps1","Safety.ps1","Rollback.ps1","Resume.ps1","HealthScore.ps1","ReportGenerator.ps1","AutoElevate.ps1","ParallelEngine.ps1","SelfHealing.ps1","ToolManager.ps1","Watchdog.ps1","ProfileManager.ps1","AutomationEngine.ps1")
+    foreach ($f in $core) {
+        $path = Join-Path (Join-Path $script:Root "Core") $f
+        try {
+            if (Test-Path $path) { . $path } else { Write-Host "Core file missing: $f" -ForegroundColor Yellow }
+        } catch {
+            Write-Host "Failed to load core file $f: $($_.Exception.Message)" -ForegroundColor Red
+            if (Get-Command -Name Write-Log -ErrorAction SilentlyContinue) { Write-Log -Level "ERROR" -Category "Load" -Message "Failed to load core file $f: $($_.Exception.Message)" }
+        }
+    }
+    try { Initialize-State -AppRoot $script:Root } catch { Write-Host "Initialize-State failed: $($_.Exception.Message)" -ForegroundColor Red }
+    try { Initialize-ConfigPaths -RootPath $script:Root } catch { Write-Host "Initialize-ConfigPaths failed: $($_.Exception.Message)" -ForegroundColor Red }
+    try { Initialize-Logger -LogDirectory (Join-Path $script:Root "Logs") -SessionIdentifier (Get-StateValue -Key "SessionId") } catch { Write-Host "Initialize-Logger failed: $($_.Exception.Message)" -ForegroundColor Red }
+    try { Initialize-Application -RootPath $script:Root } catch { Write-Host "Initialize-Application failed: $($_.Exception.Message)" -ForegroundColor Red }
+    if ($TestMode) { Set-ConfigValue "TestMode" $true }
+    Get-ChildItem (Join-Path $script:Root "Modules") -Recurse -Filter "*.ps1" | ForEach-Object {
+        try { . $_.FullName } catch { Write-Host "Failed to load module $($_.FullName): $($_.Exception.Message)" -ForegroundColor Red }
+    }
+}
+
+# ============================================================================
+# DISPLAY
+# ============================================================================
+
+function Show-Header([string]$Text) { Write-Host ""; Write-Host "  === $Text ===" -ForegroundColor Cyan; Write-Host "" }
+
+function Show-Step([string]$Text, [string]$Status = "OK") {
+    $icon = switch($Status) { "OK" {"[OK]"} "RUN" {"[..]"} "ERR" {"[!!]"} "SKIP" {"[--]"} }
+    $color = switch($Status) { "OK" {"Green"} "RUN" {"Yellow"} "ERR" {"Red"} "SKIP" {"DarkGray"} }
+    Write-Host "  $icon $Text" -ForegroundColor $color
+}
+
+function Show-Result([string]$Text, [string]$Value) {
+    Write-Host "    $Text " -NoNewline -ForegroundColor DarkGray
+    Write-Host $Value -ForegroundColor Cyan
+}
+
+# ============================================================================
+# CLEANING
+# ============================================================================
+
+function Invoke-Clean { param([switch]$Deep)
+    $tm = Get-ConfigValue "TestMode"
+    $cats = if ($Deep) { @("UserTemp","SystemTemp","WUCache","RecycleBin","ThumbnailCache","ChromeCache","FirefoxCache","WindowsLogs","CBSLogs","RecentDocs","WindowsUpgrade","InstallerLogs","WERLogs") }
+    else { @("UserTemp","SystemTemp","WUCache","RecycleBin","ThumbnailCache","ChromeCache") }
+    Show-Header "Cleaning"
+    $rec = 0; $i = 0
+    foreach ($c in $cats) {
+        $i++
+        try { $r = Invoke-Cleaning -Categories @($c) -TestMode $tm; $f = if ($r.TotalFreed) {$r.TotalFreed} else {0}; $rec += $f; if ($f -gt 0) { Show-Step "$c`: $f MB" "OK" } } catch { Show-Step "$c`: error" "ERR" }
+    }
+    Write-Host ""; Show-Result "Total recovered" "$rec MB"
+}
+
+function Invoke-Scan {
+    Show-Header "System Scan"
+    $scan = Invoke-CleaningScan
+    $total = [math]::Round($scan.TotalSize, 2)
+    Show-Result "Total recoverable" "$total MB"
+    foreach ($key in $scan.Keys) {
+        if ($key -ne "TotalSize") {
+            $item = $scan[$key]
+            $size = if ($item.Size) { [math]::Round($item.Size,2) } else { 0 }
+            if ($size -gt 0) { Show-Result $item.Name "$size MB" }
+        }
+    }
+}
+
+# ============================================================================
+# OPTIMIZATION
+# ============================================================================
+
+function Invoke-Opt { param([switch]$Full)
+    $tm = Get-ConfigValue "TestMode"
+    Show-Header "Optimization"
+
+    # Power Plan
+    Show-Step "Setting High Performance..." "RUN"
+    if (-not $tm) { powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8486b7 2>&1 | Out-Null; Show-Step "Power plan set" "OK" } else { Show-Step "Would set power plan" "SKIP" }
+
+    # Telemetry
+    Show-Step "Disabling telemetry..." "RUN"
+    if (-not $tm) { $tp = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"; if (-not (Test-Path $tp)) { New-Item -Path $tp -Force | Out-Null }; Set-ItemProperty -Path $tp -Name "AllowTelemetry" -Value 0 -Force -EA SilentlyContinue; Show-Step "Telemetry disabled" "OK" } else { Show-Step "Would disable telemetry" "SKIP" }
+
+    # Memory
+    Show-Step "Optimizing memory..." "RUN"
+    [GC]::Collect(); [GC]::WaitForPendingFinalizers(); [GC]::Collect(); Show-Step "Memory optimized" "OK"
+
+    # Visual Effects
+    Show-Step "Disabling visual effects..." "RUN"
+    if (-not $tm) {
+        $adv = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        Set-ItemProperty -Path $adv -Name "TaskbarAnimations" -Value 0 -Force -EA SilentlyContinue
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "DragFullWindows" -Value "0" -Force -EA SilentlyContinue
+        Show-Step "Visual effects disabled" "OK"
+    } else { Show-Step "Would disable visual effects" "SKIP" }
+
+    if ($Full) {
+        # Background Apps
+        Show-Step "Disabling background apps..." "RUN"
+        if (-not $tm) { Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Name "GlobalUserDisabled" -Value 1 -Force -EA SilentlyContinue; Show-Step "Background apps disabled" "OK" }
+
+        # Cortana
+        Show-Step "Disabling Cortana..." "RUN"
+        if (-not $tm) { $cn = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"; if (-not (Test-Path $cn)) { New-Item -Path $cn -Force | Out-Null }; Set-ItemProperty -Path $cn -Name "AllowCortana" -Value 0 -Force -EA SilentlyContinue; Show-Step "Cortana disabled" "OK" }
+
+        # Bing Search
+        Show-Step "Disabling Bing search..." "RUN"
+        if (-not $tm) { Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Force -EA SilentlyContinue; Show-Step "Bing search disabled" "OK" }
+
+        # Fast Startup
+        Show-Step "Disabling Fast Startup..." "RUN"
+        if (-not $tm) { Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" -Name "HiberbootEnabled" -Value 0 -Force -EA SilentlyContinue; Show-Step "Fast Startup disabled" "OK" }
+    }
+}
+
+# ============================================================================
+# PRIVACY
+# ============================================================================
+
+function Invoke-PrivacyOpt { param([switch]$Strict)
+    $tm = Get-ConfigValue "TestMode"
+    Show-Header "Privacy"
+
+    Show-Step "Disabling tracking..." "RUN"
+    if (-not $tm) {
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled" -Value 0 -Force -EA SilentlyContinue
+        Show-Step "Tracking disabled" "OK"
+    } else { Show-Step "Would disable tracking" "SKIP" }
+
+    Show-Step "Disabling ads..." "RUN"
+    if (-not $tm) {
+        $ads = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+        Set-ItemProperty -Path $ads -Name "SilentInstalledAppsEnabled" -Value 0 -Force -EA SilentlyContinue
+        Set-ItemProperty -Path $ads -Name "SoftLandingEnabled" -Value 0 -Force -EA SilentlyContinue
+        Set-ItemProperty -Path $ads -Name "SubscribedContentEnabled" -Value 0 -Force -EA SilentlyContinue
+        Show-Step "Ads disabled" "OK"
+    } else { Show-Step "Would disable ads" "SKIP" }
+
+    if ($Strict) {
+        Show-Step "Disabling activity history..." "RUN"
+        if (-not $tm) { $ah = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"; if (-not (Test-Path $ah)) { New-Item -Path $ah -Force | Out-Null }; Set-ItemProperty -Path $ah -Name "EnableActivityFeed" -Value 0 -Force -EA SilentlyContinue; Show-Step "Activity history disabled" "OK" }
+
+        Show-Step "Disabling feedback..." "RUN"
+        if (-not $tm) { Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Feedback" -Name "FeedbackRate" -Value 0 -Force -EA SilentlyContinue; Show-Step "Feedback disabled" "OK" }
+    }
+}
+
+# ============================================================================
+# NETWORK
+# ============================================================================
+
+function Invoke-NetOpt {
+    Show-Header "Network"
+
+    Show-Step "Flushing DNS..." "RUN"
+    ipconfig /flushdns 2>&1 | Out-Null; Show-Step "DNS flushed" "OK"
+
+    Show-Step "Registering DNS..." "RUN"
+    ipconfig /registerdns 2>&1 | Out-Null; Show-Step "DNS registered" "OK"
+
+    Show-Step "Resetting TCP/IP..." "RUN"
+    netsh int ip reset 2>&1 | Out-Null; Show-Step "TCP/IP reset" "OK"
+}
+
+# ============================================================================
+# HEALTH & INFO
+# ============================================================================
+
+function Show-Health {
+    Show-Header "Health Check"
+    $hs = Get-SystemHealthScore
+    $color = if ($hs.TotalScore -ge 80) { "Green" } elseif ($hs.TotalScore -ge 60) { "Yellow" } else { "Red" }
+    Write-Host "  Score: $($hs.TotalScore)/100" -ForegroundColor $color
+    Write-Host "  Grade: $($hs.Grade)" -ForegroundColor Cyan
+}
+
+function Show-Info {
+    Show-Header "System Information"
+    $info = Get-SystemInfo
+    $disk = Get-DiskInfo
+    $cpu = Get-CPUUsage
+    Write-Host "  Computer:    $($info.ComputerName)"
+    Write-Host "  User:        $($info.UserName)"
+    Write-Host "  OS:          $($info.OSVersion)"
+    Write-Host "  CPU:         $($info.CPU)"
+    Write-Host "  CPU Usage:   $cpu%"
+    Write-Host "  RAM:         $($info.TotalMemory) GB"
+    Write-Host "  Disks:" -ForegroundColor Cyan
+    foreach ($d in $disk) {
+        $color = if ($d.PercentUsed -gt 90) { "Red" } elseif ($d.PercentUsed -gt 80) { "Yellow" } else { "Green" }
+        Write-Host "    $($d.Drive)  $($d.Free) GB free / $($d.Total) GB ($($d.PercentUsed)%)" -ForegroundColor $color
+    }
+}
+
+function Show-Report {
+    Show-Header "Report"
+    if (Get-Command -Name New-SystemReport -ErrorAction SilentlyContinue) {
+        try {
+            $rp = New-SystemReport -Format "HTML"
+            Show-Step "Report generated" "OK"
+            if ($rp -and (Test-Path $rp.Path)) { Show-Result "Report path" $rp.Path }
+            else { Show-Step "Report generation returned no path" "ERR" }
+        } catch { Show-Step "Report generation failed: $($_.Exception.Message)" "ERR" }
+    } else {
+        Show-Step "Report generator not available" "SKIP"
+    }
+}
+
+function Show-Usage {
+    Write-Host "WinTunePro - Usage:" -ForegroundColor Cyan
+    Write-Host "  -TestMode    Run in simulation mode (no destructive changes)"
+    Write-Host "  -Help        Show this help"
+}
+
+function Main {
+    param([switch]$TestMode, [switch]$Help)
+    if ($Help) { Show-Usage; return }
+    Load-All
+    if ($TestMode) { Set-ConfigValue "TestMode" $true }
+    Show-Header "WinTunePro Main"
+    Show-Info
+    Show-Health
+}
+
+# If script is executed directly, run Main with provided params
+if ($MyInvocation.InvocationName -ne '') {
+    try { Main -TestMode:$TestMode -Help:$Help } catch { Write-Host "Fatal error: $($_.Exception.Message)" -ForegroundColor Red }
+}
+    if ($rp) { Show-Step "Report: $rp" "OK" }
+}
+
+# ============================================================================
+# SETTINGS
+# ============================================================================
+
+function Show-Settings {
+    $tm = Get-ConfigValue "TestMode"
+    $ar = Get-ConfigValue "AutoRestorePoint"
+    $rep = Get-ConfigValue "AutoGenerateReports"
+    
+    Show-Header "Settings"
+    Write-Host "  [1] Test Mode:          $(if($tm){"ON (preview)"}else{"OFF (live)"})"
+    Write-Host "  [2] Auto Restore Point:  $(if($ar){"ON"}else{"OFF"})"
+    Write-Host "  [3] Auto Generate Report: $(if($rep){"ON"}else{"OFF"})"
+    Write-Host "  [0] Back"
+    Write-Host ""
+    $ch = Read-Host "  Select"
+    switch ($ch) {
+        "1" { Set-ConfigValue "TestMode" (-not $tm); Save-Settings; Write-Host "  Toggled." -ForegroundColor Green }
+        "2" { Set-ConfigValue "AutoRestorePoint" (-not $ar); Save-Settings; Write-Host "  Toggled." -ForegroundColor Green }
+        "3" { Set-ConfigValue "AutoGenerateReports" (-not $rep); Save-Settings; Write-Host "  Toggled." -ForegroundColor Green }
+    }
+}
+
+# ============================================================================
+# CLI MENU
+# ============================================================================
+
+function Show-Menu {
+    $tm = Get-ConfigValue "TestMode"
+    Write-Host ""
+    Write-Host "  +---------------------------------------------+" -ForegroundColor DarkGray
+    Write-Host "  |  WinTune Pro - System Optimizer              |" -ForegroundColor White
+    Write-Host "  +---------------------------------------------+" -ForegroundColor DarkGray
+    Write-Host "  |                                              |" -ForegroundColor DarkGray
+    Write-Host "  |   [1] Full Optimization  - Everything        |" -ForegroundColor White
+    Write-Host "  |   [2] Clean All          - 31 categories     |" -ForegroundColor White
+    Write-Host "  |   [3] Clean Browsers     - Browser cache     |" -ForegroundColor White
+    Write-Host "  |   [4] Optimize           - Performance       |" -ForegroundColor White
+    Write-Host "  |   [5] Privacy            - Privacy settings  |" -ForegroundColor White
+    Write-Host "  |   [6] Network            - Network tuning    |" -ForegroundColor White
+    Write-Host "  |   [7] Disk Analyzer      - Space breakdown   |" -ForegroundColor White
+    Write-Host "  |   [8] Service Manager    - View services     |" -ForegroundColor White
+    Write-Host "  |   [9] Startup Manager    - Startup items     |" -ForegroundColor White
+    Write-Host "  |                                              |" -ForegroundColor DarkGray
+    Write-Host "  |   [H] Health Check       - System health     |" -ForegroundColor Cyan
+    Write-Host "  |   [I] System Info        - View details      |" -ForegroundColor Cyan
+    Write-Host "  |   [R] Report             - Generate report   |" -ForegroundColor Cyan
+    Write-Host "  |   [S] Settings           - App settings      |" -ForegroundColor Cyan
+    Write-Host "  |   [L] View Log          - Activity log       |" -ForegroundColor Cyan
+    Write-Host "  |   [M] Maintenance        - Windows tools     |" -ForegroundColor Magenta
+    Write-Host "  |   [0] Exit                                   |" -ForegroundColor Red
+    Write-Host "  |                                              |" -ForegroundColor DarkGray
+    Write-Host "  +---------------------------------------------+" -ForegroundColor DarkGray
+    Write-Host ""
+    $modeText = if ($tm) { "TEST (preview)" } else { "LIVE (changes apply)" }
+    Write-Host "  Mode: $modeText" -ForegroundColor $(if ($tm) { "Yellow" } else { "Green" })
+    Write-Host ""
+}
+
+function Start-CLI {
+    Show-Menu
+    while ($true) {
+        $ch = (Read-Host "  Select").ToUpper().Trim()
+        if ([string]::IsNullOrEmpty($ch)) { Show-Menu; continue }
+        switch ($ch) {
+            "1" { Invoke-FullOptimization }
+            "2" { Invoke-Clean }
+            "3" { Invoke-CleanBrowsers }
+            "4" { Invoke-Opt }
+            "5" { Invoke-PrivacyOpt }
+            "6" { Invoke-NetOpt }
+            "7" { Show-DiskAnalyzer }
+            "8" { Show-ServiceManager }
+            "9" { Show-StartupManager }
+            "H" { Show-Health }
+            "I" { Show-Info }
+            "R" { Show-Report }
+            "S" { Show-Settings }
+            "L" { Show-ActivityLog }
+            "M" { Show-MaintenanceMenu }
+            "0" { Save-Settings; Write-Host "  Goodbye!"; return }
+            default { Write-Host "  Invalid option" -ForegroundColor Red }
+        }
+        Write-Host ""; Read-Host "  Press Enter"; Show-Menu
+    }
+}
+
+# ============================================================================
+# GUI
+# ============================================================================
+
+function Start-GUI {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = "WinTune Pro"
+    $form.Size = New-Object System.Drawing.Size(750,620)
+    $form.StartPosition = "CenterScreen"
+    $form.BackColor = [System.Drawing.Color]::FromArgb(245,247,250)
+    $form.Font = New-Object System.Drawing.Font("Segoe UI",9)
+
+    $header = New-Object System.Windows.Forms.Label
+    $header.Text = "  WinTune Pro - System Optimizer"
+    $header.Font = New-Object System.Drawing.Font("Segoe UI",16,[System.Drawing.FontStyle]::Bold)
+    $header.Size = New-Object System.Drawing.Size(700,45)
+    $header.Location = New-Object System.Drawing.Point(10,5)
+    $header.ForeColor = [System.Drawing.Color]::FromArgb(37,99,235)
+    $form.Controls.Add($header)
+
+    # System info bar
+    $sysInfo = Get-SystemInfo
+    $cpu = Get-CPUUsage
+    $infoBar = New-Object System.Windows.Forms.Label
+    $infoBar.Text = "CPU: $cpu% | RAM: $($sysInfo.TotalMemory) GB | Session: $(Get-SessionId)"
+    $infoBar.Size = New-Object System.Drawing.Size(710,20)
+    $infoBar.Location = New-Object System.Drawing.Point(15,45)
+    $infoBar.ForeColor = [System.Drawing.Color]::FromArgb(100,100,100)
+    $infoBar.Font = New-Object System.Drawing.Font("Segoe UI",8)
+    $form.Controls.Add($infoBar)
+
+    $status = New-Object System.Windows.Forms.Label
+    $status.Size = New-Object System.Drawing.Size(710,25)
+    $status.Location = New-Object System.Drawing.Point(15,65)
+    $status.ForeColor = [System.Drawing.Color]::FromArgb(100,100,100)
+    $form.Controls.Add($status)
+
+    $progress = New-Object System.Windows.Forms.ProgressBar
+    $progress.Size = New-Object System.Drawing.Size(710,18)
+    $progress.Location = New-Object System.Drawing.Point(15,92)
+    $form.Controls.Add($progress)
+
+    $hsLabel = New-Object System.Windows.Forms.Label
+    $hsLabel.Size = New-Object System.Drawing.Size(200,60)
+    $hsLabel.Location = New-Object System.Drawing.Point(15,115)
+    $hsLabel.Font = New-Object System.Drawing.Font("Segoe UI",24,[System.Drawing.FontStyle]::Bold)
+    $hsLabel.ForeColor = [System.Drawing.Color]::FromArgb(37,99,235)
+    $form.Controls.Add($hsLabel)
+
+    # Monitoring sidebar
+    $monLabel = New-Object System.Windows.Forms.Label
+    $monLabel.Text = "System Monitor"
+    $monLabel.Font = New-Object System.Drawing.Font("Segoe UI",10,[System.Drawing.FontStyle]::Bold)
+    $monLabel.Size = New-Object System.Drawing.Size(200,20)
+    $monLabel.Location = New-Object System.Drawing.Point(540,115)
+    $monLabel.ForeColor = [System.Drawing.Color]::FromArgb(37,99,235)
+    $form.Controls.Add($monLabel)
+
+    $cpuLabel = New-Object System.Windows.Forms.Label
+    $cpuLabel.Size = New-Object System.Drawing.Size(200,20)
+    $cpuLabel.Location = New-Object System.Drawing.Point(540,135)
+    $cpuLabel.ForeColor = [System.Drawing.Color]::FromArgb(100,100,100)
+    $form.Controls.Add($cpuLabel)
+
+    $ramLabel = New-Object System.Windows.Forms.Label
+    $ramLabel.Size = New-Object System.Drawing.Size(200,20)
+    $ramLabel.Location = New-Object System.Drawing.Point(540,155)
+    $ramLabel.ForeColor = [System.Drawing.Color]::FromArgb(100,100,100)
+    $form.Controls.Add($ramLabel)
+
+    $diskLabel = New-Object System.Windows.Forms.Label
+    $diskLabel.Size = New-Object System.Drawing.Size(200,20)
+    $diskLabel.Location = New-Object System.Drawing.Point(540,175)
+    $diskLabel.ForeColor = [System.Drawing.Color]::FromArgb(100,100,100)
+    $form.Controls.Add($diskLabel)
+
+    # Update monitoring
+    function Update-Monitor {
+        $cpu = Get-CPUUsage
+        $cpuLabel.Text = "CPU: $cpu%"
+        $cpuLabel.ForeColor = if ($cpu -gt 80) { [System.Drawing.Color]::FromArgb(220,38,38) } else { [System.Drawing.Color]::FromArgb(100,100,100) }
+        
+        $mem = Get-CachedCimInstance "Win32_OperatingSystem"
+        if ($mem) {
+            $totalGB = [math]::Round($mem.TotalVisibleMemorySize / 1MB, 1)
+            $freeGB = [math]::Round($mem.FreePhysicalMemory / 1MB, 1)
+            $usedPercent = [math]::Round((($totalGB - $freeGB) / $totalGB) * 100, 1)
+            $ramLabel.Text = "RAM: $usedPercent% ($freeGB GB free)"
+        }
+        
+        $disk = Get-CachedCimInstance "Win32_LogicalDisk"
+        if ($disk -is [array]) { $disk = $disk[0] }
+        if ($disk) {
+            $freeGB = [math]::Round($disk.FreeSpace / 1GB, 1)
+            $diskLabel.Text = "Disk C: $freeGB GB free"
+        }
+    }
+
+    # Log textbox
+    $log = New-Object System.Windows.Forms.TextBox
+    $log.Multiline = $true; $log.ReadOnly = $true; $log.ScrollBars = "Vertical"
+    $log.Size = New-Object System.Drawing.Size(520,250)
+    $log.Location = New-Object System.Drawing.Point(15,195)
+    $log.BackColor = [System.Drawing.Color]::White
+    $log.Font = New-Object System.Drawing.Font("Consolas",9)
+    $form.Controls.Add($log)
+    function Add-Log([string]$t) { $log.AppendText("$t`r`n"); $log.SelectionStart = $log.Text.Length; $log.ScrollToCaret() }
+
+    # Start button
+    $startBtn = New-Object System.Windows.Forms.Button
+    $startBtn.Text = "Start Optimization"
+    $startBtn.Size = New-Object System.Drawing.Size(160,40)
+    $startBtn.Location = New-Object System.Drawing.Point(15,510)
+    $startBtn.BackColor = [System.Drawing.Color]::FromArgb(22,163,74)
+    $startBtn.ForeColor = [System.Drawing.Color]::White
+    $startBtn.FlatStyle = "Flat"
+    $startBtn.Font = New-Object System.Drawing.Font("Segoe UI",10,[System.Drawing.FontStyle]::Bold)
+    $startBtn.Add_Click({
+        $tm = Get-ConfigValue "TestMode"
+        $startBtn.Enabled = $false
+
+        # Health before
+        $hsB = Get-SystemHealthScore
+        $hsLabel.Text = "$($hsB.TotalScore)/100"
+        $hsLabel.ForeColor = [System.Drawing.Color]::FromArgb(200,100,0)
+        Add-Log "BEFORE: $($hsB.TotalScore)/100"
+
+        # Clean
+        $status.Text = "Cleaning..."; $progress.Value = 10; $form.Refresh()
+        $rec = 0
+        foreach ($c in @("UserTemp","SystemTemp","WUCache","RecycleBin","ThumbnailCache","ChromeCache")) {
+            try { $r = Invoke-Cleaning -Categories @($c) -TestMode $tm; if ($r.TotalFreed -gt 0) { $rec += $r.TotalFreed; Add-Log "  $c`: $([math]::Round($r.TotalFreed,2)) MB" } } catch { }
+        }
+        Add-Log "Cleaned: $rec MB"
+
+        # Optimize
+        $status.Text = "Optimizing..."; $progress.Value = 40; $form.Refresh()
+        $opt = Invoke-Optimization -TestMode $tm
+        foreach ($a in $opt.Actions) { Add-Log "  $a" }
+
+        # Privacy
+        $status.Text = "Privacy..."; $progress.Value = 60; $form.Refresh()
+        $priv = Invoke-PrivacyOptimization -Mode "Basic" -TestMode $tm
+        foreach ($a in $priv.Actions) { Add-Log "  $a" }
+
+        # Network
+        $status.Text = "Network..."; $progress.Value = 75; $form.Refresh()
+        ipconfig /flushdns 2>&1 | Out-Null
+        Add-Log "  DNS flushed"
+
+        # Gaming
+        $status.Text = "Gaming..."; $progress.Value = 85; $form.Refresh()
+        $game = Invoke-GamingOptimization -TestMode $tm
+        foreach ($a in $game.Actions) { Add-Log "  $a" }
+
+        # Final
+        $status.Text = "Final check..."; $progress.Value = 95; $form.Refresh()
+        $hsA = Get-SystemHealthScore
+        $progress.Value = 100; $status.Text = "Complete!"
+        $hsLabel.Text = "$($hsA.TotalScore)/100"
+        $diff = $hsA.TotalScore - $hsB.TotalScore
+        if ($diff -gt 0) { $hsLabel.ForeColor = [System.Drawing.Color]::FromArgb(22,163,74); Add-Log "AFTER: $($hsA.TotalScore)/100 (+$diff)" }
+        else { $hsLabel.ForeColor = [System.Drawing.Color]::FromArgb(37,99,235); Add-Log "AFTER: $($hsA.TotalScore)/100" }
+
+        $startBtn.Enabled = $true
+        Save-Settings
+        [System.Windows.Forms.MessageBox]::Show("Complete!`nScore: $($hsA.TotalScore)/100`nSpace: $rec MB", "WinTune Pro", "OK", "Information")
+    })
+    $form.Controls.Add($startBtn)
+
+    # Settings button
+    $settingsBtn = New-Object System.Windows.Forms.Button
+    $settingsBtn.Text = "Settings"
+    $settingsBtn.Size = New-Object System.Drawing.Size(100,40)
+    $settingsBtn.Location = New-Object System.Drawing.Point(190,510)
+    $settingsBtn.BackColor = [System.Drawing.Color]::FromArgb(100,100,100)
+    $settingsBtn.ForeColor = [System.Drawing.Color]::White
+    $settingsBtn.FlatStyle = "Flat"
+    $settingsBtn.Add_Click({
+        $f2 = New-Object System.Windows.Forms.Form
+        $f2.Text = "Settings"
+        $f2.Size = New-Object System.Drawing.Size(350,280)
+        $f2.StartPosition = "CenterParent"
+        $f2.BackColor = [System.Drawing.Color]::FromArgb(245,247,250)
+
+        $y = 20
+        $tmCb = New-Object System.Windows.Forms.CheckBox; $tmCb.Text = "Test Mode"; $tmCb.Location = New-Object System.Drawing.Point(20,$y); $tmCb.Size = New-Object System.Drawing.Size(300,25); $tmCb.Checked = [bool](Get-ConfigValue "TestMode"); $f2.Controls.Add($tmCb)
+        $y += 35
+        $arCb = New-Object System.Windows.Forms.CheckBox; $arCb.Text = "Auto Restore Point"; $arCb.Location = New-Object System.Drawing.Point(20,$y); $arCb.Size = New-Object System.Drawing.Size(300,25); $arCb.Checked = [bool](Get-ConfigValue "AutoRestorePoint"); $f2.Controls.Add($arCb)
+        $y += 35
+        $repCb = New-Object System.Windows.Forms.CheckBox; $repCb.Text = "Auto Generate Reports"; $repCb.Location = New-Object System.Drawing.Point(20,$y); $repCb.Size = New-Object System.Drawing.Size(300,25); $repCb.Checked = [bool](Get-ConfigValue "AutoGenerateReports"); $f2.Controls.Add($repCb)
+
+        $y += 50
+        $saveB = New-Object System.Windows.Forms.Button; $saveB.Text = "Save"; $saveB.Size = New-Object System.Drawing.Size(100,35); $saveB.Location = New-Object System.Drawing.Point(20,$y); $saveB.BackColor = [System.Drawing.Color]::FromArgb(37,99,235); $saveB.ForeColor = [System.Drawing.Color]::White; $saveB.FlatStyle = "Flat"; $saveB.Add_Click({ Set-ConfigValue "TestMode" $tmCb.Checked; Set-ConfigValue "AutoRestorePoint" $arCb.Checked; Set-ConfigValue "AutoGenerateReports" $repCb.Checked; Save-Settings; $f2.Close() }); $f2.Controls.Add($saveB)
+        $cancelB = New-Object System.Windows.Forms.Button; $cancelB.Text = "Cancel"; $cancelB.Size = New-Object System.Drawing.Size(100,35); $cancelB.Location = New-Object System.Drawing.Point(140,$y); $cancelB.FlatStyle = "Flat"; $cancelB.Add_Click({ $f2.Close() }); $f2.Controls.Add($cancelB)
+
+        $f2.ShowDialog() | Out-Null
+    })
+    $form.Controls.Add($settingsBtn)
+
+    # Maintenance button
+    $maintBtn = New-Object System.Windows.Forms.Button
+    $maintBtn.Text = "Maintenance"
+    $maintBtn.Size = New-Object System.Drawing.Size(120,40)
+    $maintBtn.Location = New-Object System.Drawing.Point(310,510)
+    $maintBtn.BackColor = [System.Drawing.Color]::FromArgb(128,0,128)
+    $maintBtn.ForeColor = [System.Drawing.Color]::White
+    $maintBtn.FlatStyle = "Flat"
+    $maintBtn.Add_Click({
+        $f3 = New-Object System.Windows.Forms.Form
+        $f3.Text = "Windows Maintenance"
+        $f3.Size = New-Object System.Drawing.Size(400,450)
+        $f3.StartPosition = "CenterParent"
+        $f3.BackColor = [System.Drawing.Color]::FromArgb(245,247,250)
+
+        $y = 15
+        $sfcBtn = New-Object System.Windows.Forms.Button
+        $sfcBtn.Text = "SFC Scan"
+        $sfcBtn.Size = New-Object System.Drawing.Size(350,35)
+        $sfcBtn.Location = New-Object System.Drawing.Point(20,$y)
+        $sfcBtn.BackColor = [System.Drawing.Color]::FromArgb(37,99,235)
+        $sfcBtn.ForeColor = [System.Drawing.Color]::White
+        $sfcBtn.FlatStyle = "Flat"
+        $sfcBtn.Add_Click({ try { $p = Start-Process "sfc.exe" -ArgumentList "/SCANNOW" -Wait -PassThru -NoNewWindow; if ($p.ExitCode -eq 0) { Add-Log "SFC complete" } } catch { Add-Log "SFC failed" } })
+        $f3.Controls.Add($sfcBtn)
+
+        $y += 45
+        $dismBtn = New-Object System.Windows.Forms.Button
+        $dismBtn.Text = "DISM RestoreHealth"
+        $dismBtn.Size = New-Object System.Drawing.Size(350,35)
+        $dismBtn.Location = New-Object System.Drawing.Point(20,$y)
+        $dismBtn.BackColor = [System.Drawing.Color]::FromArgb(37,99,235)
+        $dismBtn.ForeColor = [System.Drawing.Color]::White
+        $dismBtn.FlatStyle = "Flat"
+        $dismBtn.Add_Click({ try { $p = Start-Process "DISM.exe" -ArgumentList "/Online /Cleanup-Image /RestoreHealth" -Wait -PassThru -NoNewWindow; if ($p.ExitCode -eq 0) { Add-Log "DISM restore complete" } } catch { Add-Log "DISM failed" } })
+        $f3.Controls.Add($dismBtn)
+
+        $y += 45
+        $cleanBtn = New-Object System.Windows.Forms.Button
+        $cleanBtn.Text = "Disk Cleanup"
+        $cleanBtn.Size = New-Object System.Drawing.Size(350,35)
+        $cleanBtn.Location = New-Object System.Drawing.Point(20,$y)
+        $cleanBtn.BackColor = [System.Drawing.Color]::FromArgb(37,99,235)
+        $cleanBtn.ForeColor = [System.Drawing.Color]::White
+        $cleanBtn.FlatStyle = "Flat"
+        $cleanBtn.Add_Click({
+            # Disk cleanup click handler
+        })
+        $f3.Controls.Add($cleanBtn)
+    })
+
+    # ============================================================================
+# DISK ANALYZER
+# ============================================================================
+
+function Show-DiskAnalyzer {
+    Show-Header "Disk Space Analyzer"
+    $disk = Get-DiskInfo
+    foreach ($d in $disk) {
+        $pct = $d.PercentUsed
+        $color = if ($pct -gt 90) { "Red" } elseif ($pct -gt 80) { "Yellow" } else { "Green" }
+        $bar = "#" * [math]::Floor($pct / 2.5) + "." * (40 - [math]::Floor($pct / 2.5))
+        Write-Host "  $($d.Drive) [$bar] $pct%" -ForegroundColor $color
+        Write-Host "    $($d.Free) GB free / $($d.Total) GB" -ForegroundColor DarkGray
+    }
+    Write-Host ""
+    Show-Step "Run cleaning to free space" "OK"
+}
+
+# ============================================================================
+# SERVICE MANAGER
+# ============================================================================
+
+function Show-ServiceManager {
+    Show-Header "Service Manager"
+    $services = Get-Service | Where-Object { $_.Status -eq "Running" } | Sort-Object Name | Select-Object -First 20
+    Write-Host "  Top 20 running services:" -ForegroundColor Cyan
+    foreach ($svc in $services) {
+        $color = if ($svc.StartType -eq "Automatic") { "White" } else { "DarkGray" }
+        Write-Host "    $($svc.Name.PadRight(30)) $($svc.StartType)" -ForegroundColor $color
+    }
+    Write-Host ""
+    Write-Host "  Use 'Get-Service' to manage services" -ForegroundColor DarkGray
+}
+
+# ============================================================================
+# STARTUP MANAGER
+# ============================================================================
+
+function Show-StartupManager {
+    Show-Header "Startup Manager"
+    $items = Get-StartupItems
+    if ($items -and $items.Count -gt 0) {
+        Write-Host "  Startup items:" -ForegroundColor Cyan
+        foreach ($item in $items | Select-Object -First 20) {
+            Write-Host "    $($item.Name)" -ForegroundColor White
+        }
+    } else {
+        Write-Host "  No startup items found" -ForegroundColor DarkGray
+    }
+}
+
+# ============================================================================
+# ACTIVITY LOG
+# ============================================================================
+
+function Show-ActivityLog {
+    Show-Header "Activity Log"
+    $logPath = Join-Path $script:Root "Logs"
+    $logs = Get-ChildItem $logPath -Filter "*.log" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 3
+    foreach ($log in $logs) {
+        $lines = Get-Content $log.FullName -Tail 20 -ErrorAction SilentlyContinue
+        Write-Host "  $($log.Name) (last 20 lines):" -ForegroundColor Cyan
+        foreach ($line in $lines) {
+            Write-Host "    $line" -ForegroundColor DarkGray
+        }
+        Write-Host ""
+    }
+}
+
+# ============================================================================
+# MAIN ENTRY
+# ============================================================================
+
+try {
+                $flags = @("Temporary Files","Temporary Internet Files","System Cache","Error Reporting","Thumbnail Cache","Recycle Bin")
+                foreach ($f in $flags) {
+                    $p = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\$f"
+                    if (Test-Path $p) { Set-ItemProperty -Path $p -Name "StateFlags0001" -Value 2 -Type DWord -Force -EA SilentlyContinue }
+                }
+                Start-Process "cleanmgr.exe" -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
+                Add-Log "Disk cleanup complete"
+            } catch { Add-Log "Disk cleanup failed" }
+        })
+        $f3.Controls.Add($cleanBtn)
+
+        $y += 45
+        $diskBtn = New-Object System.Windows.Forms.Button
+        $diskBtn.Text = "Check Disk"
+        $diskBtn.Size = New-Object System.Drawing.Size(350,35)
+        $diskBtn.Location = New-Object System.Drawing.Point(20,$y)
+        $diskBtn.BackColor = [System.Drawing.Color]::FromArgb(37,99,235)
+        $diskBtn.ForeColor = [System.Drawing.Color]::White
+        $diskBtn.FlatStyle = "Flat"
+        $diskBtn.Add_Click({ try { $o = chkdsk C: /scan 2>&1; Add-Log "Disk check: $o" } catch { Add-Log "Disk check failed" } })
+        $f3.Controls.Add($diskBtn)
+
+        $y += 45
+        $netBtn = New-Object System.Windows.Forms.Button
+        $netBtn.Text = "Reset Network"
+        $netBtn.Size = New-Object System.Drawing.Size(350,35)
+        $netBtn.Location = New-Object System.Drawing.Point(20,$y)
+        $netBtn.BackColor = [System.Drawing.Color]::FromArgb(37,99,235)
+        $netBtn.ForeColor = [System.Drawing.Color]::White
+        $netBtn.FlatStyle = "Flat"
+        $netBtn.Add_Click({ netsh int ip reset 2>&1 | Out-Null; netsh winsock reset 2>&1 | Out-Null; Add-Log "Network reset" })
+        $f3.Controls.Add($netBtn)
+
+        $y += 45
+        $dnsBtn = New-Object System.Windows.Forms.Button
+        $dnsBtn.Text = "Flush DNS"
+        $dnsBtn.Size = New-Object System.Drawing.Size(350,35)
+        $dnsBtn.Location = New-Object System.Drawing.Point(20,$y)
+        $dnsBtn.BackColor = [System.Drawing.Color]::FromArgb(37,99,235)
+        $dnsBtn.ForeColor = [System.Drawing.Color]::White
+        $dnsBtn.FlatStyle = "Flat"
+        $dnsBtn.Add_Click({ ipconfig /flushdns 2>&1 | Out-Null; Add-Log "DNS flushed" })
+        $f3.Controls.Add($dnsBtn)
+
+        $y += 50
+        $closeBtn = New-Object System.Windows.Forms.Button
+        $closeBtn.Text = "Close"
+        $closeBtn.Size = New-Object System.Drawing.Size(100,35)
+        $closeBtn.Location = New-Object System.Drawing.Point(145,$y)
+        $closeBtn.FlatStyle = "Flat"
+        $closeBtn.Add_Click({ $f3.Close() })
+        $f3.Controls.Add($closeBtn)
+
+        $f3.ShowDialog() | Out-Null
+    })
+    $form.Controls.Add($maintBtn)
+
+    # Exit button
+    $exitBtn = New-Object System.Windows.Forms.Button
+    $exitBtn.Text = "Exit"
+    $exitBtn.Size = New-Object System.Drawing.Size(100,40)
+    $exitBtn.Location = New-Object System.Drawing.Point(625,510)
+    $exitBtn.BackColor = [System.Drawing.Color]::FromArgb(220,38,38)
+    $exitBtn.ForeColor = [System.Drawing.Color]::White
+    $exitBtn.FlatStyle = "Flat"
+    $exitBtn.Add_Click({ Save-Settings; $form.Close() })
+    $form.Controls.Add($exitBtn)
+
+    $hs = Get-SystemHealthScore
+    $status.Text = "Health: $($hs.TotalScore)/100 | Admin: $(Test-Administrator)"
+    $hsLabel.Text = "$($hs.TotalScore)/100"
+
+    # Update monitoring timer
+    Update-Monitor
+
+    $form.ShowDialog() | Out-Null
+}
+
+# ============================================================================
+# FULL OPTIMIZATION
+# ============================================================================
+
+function Invoke-FullOptimization {
+    $tm = Get-ConfigValue "TestMode"
+    Show-Header "Full Optimization"
+
+    # Health before
+    $hsB = Get-SystemHealthScore
+    Write-Host "  BEFORE: $($hsB.TotalScore)/100" -ForegroundColor Yellow
+    Write-Host ""
+
+    # Clean
+    Show-Step "Cleaning system..." "RUN"
+    $cats = @("UserTemp","SystemTemp","WUCache","RecycleBin","ThumbnailCache","ChromeCache","WindowsLogs","CBSLogs","RecentDocs")
+    $rec = 0
+    foreach ($c in $cats) {
+        try { $r = Invoke-Cleaning -Categories @($c) -TestMode $tm; if ($r.TotalFreed -gt 0) { $rec += $r.TotalFreed; Show-Step "$c`: $([math]::Round($r.TotalFreed,2)) MB" "OK" } } catch { }
+    }
+    Show-Result "Total cleaned" "$rec MB"
+
+    # Optimize
+    Show-Step "Optimizing..." "RUN"
+    Invoke-Opt
+
+    # Privacy
+    Show-Step "Privacy..." "RUN"
+    Invoke-PrivacyOpt
+
+    # Network
+    Show-Step "Network..." "RUN"
+    Invoke-NetOpt
+
+    # Health after
+    $hsA = Get-SystemHealthScore
+    $diff = $hsA.TotalScore - $hsB.TotalScore
+    Write-Host ""
+    Write-Host "  AFTER: $($hsA.TotalScore)/100" -ForegroundColor $(if ($diff -gt 0) { "Green" } else { "Yellow" })
+    Write-Host "  Space: $rec MB" -ForegroundColor Cyan
+    Save-Settings
+}
+
+function Invoke-CleanBrowsers {
+    $tm = Get-ConfigValue "TestMode"
+    Show-Header "Browser Cleaning"
+    $rec = 0
+    foreach ($b in @("ChromeCache","EdgeCache","FirefoxCache")) {
+# ============================================================================
+# MAINTENANCE TOOLS
+# ============================================================================
+
+function Show-MaintenanceMenu {
+    $tm = Get-ConfigValue "TestMode"
+    Show-Header "Windows Maintenance"
+    Write-Host "  [1] SFC Scan          - System file checker" -ForegroundColor White
+    Write-Host "  [2] DISM CheckHealth  - Component store check" -ForegroundColor White
+    Write-Host "  [3] DISM RestoreHealth - Repair Windows image" -ForegroundColor White
+    Write-Host "  [4] Full Repair       - SFC + DISM" -ForegroundColor White
+    Write-Host "  [5] Disk Cleanup      - Windows disk cleanup" -ForegroundColor White
+    Write-Host "  [6] Check Disk        - Check disk for errors" -ForegroundColor White
+    Write-Host "  [0] Back to main menu" -ForegroundColor Red
+    Write-Host ""
+    $ch = Read-Host "  Select"
+    switch ($ch) {
+        "1" { Invoke-SFCScan }
+        "2" { Invoke-DISMCheck }
+        "3" { Invoke-DISMRestore }
+        "4" { Invoke-SFCScan; Invoke-DISMRestore }
+        "5" { Invoke-DiskCleanup }
+        "6" { Invoke-CheckDisk }
+    }
+}
+
+function Invoke-SFCScan {
+    Show-Header "SFC Scan"
+    $tm = Get-ConfigValue "TestMode"
+    if ($tm) {
+        Show-Step "Would run SFC /SCANNOW" "SKIP"
+        return
+    }
+    Show-Step "Running SFC /SCANNOW..." "RUN"
+    try {
+        $proc = Start-Process "sfc.exe" -ArgumentList "/SCANNOW" -Wait -PassThru -NoNewWindow
+        if ($proc.ExitCode -eq 0) {
+            Show-Step "SFC scan complete" "OK"
+        } else {
+            Show-Step "SFC scan completed with warnings" "ERR"
+        }
+    } catch {
+        Show-Step "SFC scan failed" "ERR"
+    }
+}
+
+function Invoke-DISMCheck {
+    Show-Header "DISM CheckHealth"
+    $tm = Get-ConfigValue "TestMode"
+    if ($tm) {
+        Show-Step "Would run DISM /CheckHealth" "SKIP"
+        return
+    }
+    Show-Step "Running DISM /Online /Cleanup-Image /CheckHealth..." "RUN"
+    try {
+        $proc = Start-Process "DISM.exe" -ArgumentList "/Online /Cleanup-Image /CheckHealth" -Wait -PassThru -NoNewWindow
+        if ($proc.ExitCode -eq 0) {
+            Show-Step "DISM check complete" "OK"
+        } else {
+            Show-Step "DISM check found issues" "ERR"
+        }
+    } catch {
+        Show-Step "DISM check failed" "ERR"
+    }
+}
+
+function Invoke-DISMRestore {
+    Show-Header "DISM RestoreHealth"
+    $tm = Get-ConfigValue "TestMode"
+    if ($tm) {
+        Show-Step "Would run DISM /RestoreHealth" "SKIP"
+        return
+    }
+    Show-Step "Running DISM /Online /Cleanup-Image /RestoreHealth..." "RUN"
+    Show-Step "This may take several minutes..." "RUN"
+    try {
+        $proc = Start-Process "DISM.exe" -ArgumentList "/Online /Cleanup-Image /RestoreHealth" -Wait -PassThru -NoNewWindow
+        if ($proc.ExitCode -eq 0) {
+            Show-Step "DISM restore complete" "OK"
+        } else {
+            Show-Step "DISM restore completed with warnings" "ERR"
+        }
+    } catch {
+        Show-Step "DISM restore failed" "ERR"
+    }
+}
+
+function Invoke-DiskCleanup {
+    Show-Header "Disk Cleanup"
+    $tm = Get-ConfigValue "TestMode"
+    if ($tm) {
+        Show-Step "Would run cleanmgr /sagerun:1" "SKIP"
+        return
+    }
+    Show-Step "Configuring Disk Cleanup..." "RUN"
+    try {
+        # Set cleanup flags
+        $cleanFlags = @("Temporary Files","Temporary Internet Files","System Cache","Error Reporting","Thumbnail Cache","Recycle Bin","Windows Update Cleanup","Device Driver Packages")
+        foreach ($flag in $cleanFlags) {
+            $path = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\$flag"
+            if (Test-Path $path) {
+                Set-ItemProperty -Path $path -Name "StateFlags0001" -Value 2 -Type DWord -Force -EA SilentlyContinue
+            }
+        }
+        Show-Step "Cleanup configured" "OK"
+        
+        Show-Step "Running Disk Cleanup..." "RUN"
+        Start-Process "cleanmgr.exe" -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
+        Show-Step "Disk Cleanup complete" "OK"
+    } catch {
+        Show-Step "Disk Cleanup failed" "ERR"
+    }
+}
+
+function Invoke-CheckDisk {
+    Show-Header "Check Disk"
+    $tm = Get-ConfigValue "TestMode"
+    if ($tm) {
+        Show-Step "Would run chkdsk C: /F" "SKIP"
+        return
+    }
+    Show-Step "Running chkdsk C: /F (read-only check)..." "RUN"
+    try {
+        $output = chkdsk C: 2>&1 | Out-String
+        if ($output -match "no problems") {
+            Show-Step "No problems found" "OK"
+        } elseif ($output -match "problems found" -or $output -match "corrupt") {
+            Show-Step "Problems found - run chkdsk C: /F /R manually" "ERR"
+        } else {
+            Show-Step "Disk check completed" "OK"
+        }
+    } catch {
+        Show-Step "Disk check failed" "ERR"
+    }
+}
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+try {
+            $r = Invoke-Cleaning -Categories @($b) -TestMode $tm
+            if ($r.TotalFreed -gt 0) { $rec += $r.TotalFreed; Show-Step "$b`: $([math]::Round($r.TotalFreed,2)) MB" "OK" }
+        } catch { }
+    }
+    Show-Result "Total" "$rec MB"
+}
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+try {
+    if ($Help) { Write-Host "WinTune Pro - WinTunePro.ps1 -CLI or -GUI"; exit }
+    Write-Host "Loading..." -ForegroundColor DarkGray
+    Load-All
+    Clear-Host
+    Write-Host ""; Write-Host "  WinTune Pro" -ForegroundColor Cyan; Write-Host ""
+    Write-Host "  [1] CLI Mode" -ForegroundColor Green
+    Write-Host "  [2] GUI Mode" -ForegroundColor Green
+    Write-Host "  [0] Exit" -ForegroundColor Red
+    Write-Host ""
+    $ch = (Read-Host "  Select").Trim()
+    switch ($ch) {
+        "1" { Start-CLI }
+        "2" { Start-GUI }
+        "0" { Save-Settings; Write-Host "Goodbye!"; exit }
+        default { Write-Host "Starting CLI..."; Start-CLI }
+    }
+} catch {
+    $msg = $_.Exception.Message
+    Write-Host "Error: $msg" -ForegroundColor Red
+    Read-Host "Press Enter"
+}
+
+
+
+# ============================================================================
+# MAIN ENTRY
+# ============================================================================
+
+try {
+    if ($Help) { Write-Host "WinTune Pro - WinTunePro.ps1 -CLI or -GUI"; exit }
+    Write-Host "Loading..." -ForegroundColor DarkGray
+    Load-All
+    Clear-Host
+    Write-Host ""; Write-Host "  WinTune Pro" -ForegroundColor Cyan; Write-Host ""
+    Write-Host "  [1] CLI Mode" -ForegroundColor Green
+    Write-Host "  [2] GUI Mode" -ForegroundColor Green
+    Write-Host "  [0] Exit" -ForegroundColor Red; Write-Host ""
+    $ch = (Read-Host "  Select").Trim()
+    switch ($ch) {
+        "1" { Start-CLI }
+        "2" { Start-GUI }
+        "0" { Save-Settings; Write-Host "Goodbye!"; exit }
+        default { Write-Host "Starting CLI..."; Start-CLI }
+    }
+} catch {
+    $msg = $_.Exception.Message
+    Write-Host "Error: $msg" -ForegroundColor Red
+    Read-Host "Press Enter"
+}

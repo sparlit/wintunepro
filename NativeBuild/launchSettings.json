@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "WinTunePro": {
+      "commandName": "Project",
+      "workingDirectory": "..\\",
+      "commandLineArgs": "",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

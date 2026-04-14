@@ -1,0 +1,96 @@
+$ErrorActionPreference = "Continue"
+$scriptRoot = 'E:\WinTunePro'
+$allErrors = @()
+$pass = 0; $fail = 0
+
+function Test-Func($name, $code) {
+    try { & $code | Out-Null; $script:pass++; Write-Host "  [OK] $name" -ForegroundColor Green } catch { $script:fail++; $script:allErrors += "$name : $($_.Exception.Message)"; Write-Host "  [ERR] $name : $($_.Exception.Message)" -ForegroundColor Red }
+}
+
+Write-Host "=== FULL TEST ===" -ForegroundColor Cyan
+
+# Load core
+$core = @("Config.ps1","Logger.ps1","State.ps1","AppCore.ps1","Helpers.ps1","SafetyNet.ps1","Safety.ps1","Rollback.ps1","Resume.ps1","HealthScore.ps1","ReportGenerator.ps1","AutoElevate.ps1","ParallelEngine.ps1","SelfHealing.ps1","ToolManager.ps1","Watchdog.ps1","ProfileManager.ps1","AutomationEngine.ps1")
+foreach ($f in $core) { try { . "$scriptRoot\Core\$f" } catch { $allErrors += "Core\$f : $($_.Exception.Message)"; $fail++ } }
+try { Initialize-State -AppRoot $scriptRoot; Initialize-ConfigPaths -RootPath $scriptRoot; Initialize-Logger -LogDirectory (Join-Path $scriptRoot "Logs") -SessionIdentifier "T"; Initialize-Application -RootPath $scriptRoot } catch { $allErrors += "Init : $($_.Exception.Message)" }
+
+# Load modules
+$mods = Get-ChildItem "$scriptRoot\Modules" -Recurse -Filter '*.ps1' | Where-Object { $_.FullName -notlike '*Sophia*' }
+$mOk = 0; $mFail = 0
+foreach ($m in $mods) { try { . $m.FullName; $mOk++ } catch { $mFail++; $allErrors += "$($m.Name) : $($_.Exception.Message)" } }
+
+# Load UI
+try { . "$scriptRoot\UI\MainWindow.ps1" } catch { $allErrors += "UI : $($_.Exception.Message)" }
+
+# Test all button functions
+Test-Func "Update-Status" { Update-Status -Text "T" -State "Ready" }
+Test-Func "Add-ActivityLog" { Add-ActivityLog "T" }
+Test-Func "Update-DashboardStats" { Update-DashboardStats }
+Test-Func "Update-AdminBadge" { Update-AdminBadge }
+Test-Func "Find-UIElement" { Find-UIElement "QuickOptimizeBtn" }
+Test-Func "Load-SettingsIntoUI" { Load-SettingsIntoUI }
+Test-Func "Get-SystemHealthScore" { Get-SystemHealthScore }
+Test-Func "Invoke-QuickOptimize" { Invoke-QuickOptimize -TestMode $true }
+Test-Func "Invoke-MasterClean" { Invoke-MasterClean -TestMode $true }
+Test-Func "Invoke-CleaningScan" { Invoke-CleaningScan }
+Test-Func "Invoke-Cleaning" { Invoke-Cleaning -Categories @("UserTemp") -TestMode $true }
+Test-Func "Invoke-OptimizationAnalysis" { Invoke-OptimizationAnalysis }
+Test-Func "Invoke-Optimization" { Invoke-Optimization -TestMode $true }
+Test-Func "Get-CurrentPowerPlan" { Get-CurrentPowerPlan }
+Test-Func "Set-PowerPlan" { Set-PowerPlan -Name "Balanced" -Preview }
+Test-Func "Get-DNSProviders" { Get-DNSProviders }
+Test-Func "Invoke-FlushDNS" { Invoke-FlushDNS -Preview }
+Test-Func "Clear-DNSCache" { Clear-DNSCache -Preview }
+Test-Func "Invoke-NetworkTuning" { Invoke-NetworkTuning -Preview }
+Test-Func "Get-PrivacyScore" { Get-PrivacyScore }
+Test-Func "Invoke-PrivacyOptimization" { Invoke-PrivacyOptimization -Mode "Basic" -TestMode $true }
+Test-Func "Invoke-FullPrivacyOptimization" { Invoke-FullPrivacyOptimization -TestMode $true }
+Test-Func "Disable-BingSearch" { Disable-BingSearch -TestMode $true }
+Test-Func "Disable-PrivacyTasks" { Disable-PrivacyTasks -TestMode $true }
+Test-Func "Disable-PrivacyServices" { Disable-PrivacyServices -TestMode $true }
+Test-Func "Disable-WindowsConsumerFeatures" { Disable-WindowsConsumerFeatures -TestMode $true }
+Test-Func "Get-StorageRecommendations" { Get-StorageRecommendations }
+Test-Func "Invoke-StorageOptimization" { Invoke-StorageOptimization -TestMode $true }
+Test-Func "Get-TRIMStatus" { Get-TRIMStatus }
+Test-Func "Get-DiskList" { Get-DiskList }
+Test-Func "Get-GameModeStatus" { Get-GameModeStatus }
+Test-Func "Invoke-GamingOptimization" { Invoke-GamingOptimization -TestMode $true }
+Test-Func "Get-BatteryStatus" { Get-BatteryStatus }
+Test-Func "Get-PowerPlans" { Get-PowerPlans }
+Test-Func "Invoke-BatteryOptimization" { Invoke-BatteryOptimization -TestMode $true }
+Test-Func "Get-MemoryInfo" { Get-MemoryInfo }
+Test-Func "Optimize-Memory" { Optimize-Memory -Preview }
+Test-Func "New-SafeRestorePoint" { New-SafeRestorePoint -Name "T" -Preview }
+Test-Func "New-SystemReport" { New-SystemReport -Format "TXT" }
+Test-Func "Initialize-TweakDatabase" { Initialize-TweakDatabase }
+Test-Func "Get-SystemTweaks" { Get-SystemTweaks }
+Test-Func "Get-BloatwareDatabase" { Get-BloatwareDatabase }
+Test-Func "Get-InstalledBloatware" { Get-InstalledBloatware }
+Test-Func "Get-PrivacyRegistry" { Get-PrivacyRegistry }
+Test-Func "Get-PerformanceRegistry" { Get-PerformanceRegistry }
+Test-Func "Apply-RegistryTweaks" { Apply-RegistryTweaks -Tweaks (Get-PrivacyRegistry) -TestMode $true }
+Test-Func "Get-RegistryState" { Get-RegistryState -Tweaks (Get-PerformanceRegistry) }
+Test-Func "Invoke-SystemBenchmark" { Invoke-SystemBenchmark -TestMode $true }
+Test-Func "Get-BenchmarkRating" { Get-BenchmarkRating -Score 75 }
+Test-Func "Get-BenchmarkBaseline" { Get-BenchmarkBaseline }
+Test-Func "Cleanup-Image" { Cleanup-Image -Preview }
+Test-Func "Write-OperationLog" { Write-OperationLog "T" }
+Test-Func "Register-StartupChange" { Register-StartupChange -Name "T" -Action "T" }
+Test-Func "Invoke-SophiaTweaks" { Invoke-SophiaTweaks -Preview }
+Test-Func "Set-ServiceStartupType" { Set-ServiceStartupType -ServiceName "T" -StartupType "Manual" -Preview }
+Test-Func "Register-Operation" { Register-Operation -Name "T" }
+Test-Func "Register-RollbackOperation" { Register-RollbackOperation -OperationType "T" -Target "T" -RollbackCommand {} }
+Test-Func "Register-ServiceChange" { Register-ServiceChange -ServiceName "T" -PreviousState "R" -NewState "S" }
+Test-Func "Register-NetworkChange" { Register-NetworkChange -ChangeType "T" -Details "T" }
+Test-Func "Save-Settings" { Save-Settings }
+
+Write-Host "`n=== RESULTS ===" -ForegroundColor Cyan
+Write-Host "Core: $($core.Count)/$($core.Count)" -ForegroundColor Green
+Write-Host "Modules: $mOk/$($mOk+$mFail)" -ForegroundColor $(if ($mFail -eq 0) { "Green" } else { "Red" })
+Write-Host "Functions: $pass/$($pass+$fail)" -ForegroundColor $(if ($fail -eq 0) { "Green" } else { "Red" })
+Write-Host "Total errors: $($allErrors.Count)" -ForegroundColor $(if ($allErrors.Count -eq 0) { "Green" } else { "Red" })
+
+if ($allErrors.Count -gt 0) {
+    $allErrors | Out-File "$scriptRoot\errors_found.txt" -Encoding UTF8
+    Write-Host "Errors saved to errors_found.txt" -ForegroundColor DarkGray
+}

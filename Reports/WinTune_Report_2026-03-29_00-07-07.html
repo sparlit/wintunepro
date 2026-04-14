@@ -1,0 +1,202 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WinTune Pro - System Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0D0D1A;
+            color: #FFFFFF;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: #1A1A2E;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #6C5CE7;
+            margin: 0 0 10px 0;
+        }
+        .header .subtitle {
+            color: #A0A0B0;
+        }
+        .card {
+            background: #1A1A2E;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #2D2D4A;
+        }
+        .card h2 {
+            color: #00CEC9;
+            margin-top: 0;
+            border-bottom: 2px solid #6C5CE7;
+            padding-bottom: 10px;
+        }
+        .health-score {
+            text-align: center;
+            padding: 30px;
+        }
+        .health-score .score {
+            font-size: 72px;
+            font-weight: bold;
+            color: #00B894;
+        }
+        .health-score .label {
+            color: #A0A0B0;
+            font-size: 18px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .info-item {
+            background: #16213E;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .info-item .label {
+            color: #A0A0B0;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        .info-item .value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .disk-bar {
+            background: #2D2D4A;
+            border-radius: 4px;
+            height: 20px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .disk-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .success { color: #00B894; }
+        .warning { color: #FDCB6E; }
+        .danger { color: #E17055; }
+        .info { color: #74B9FF; }
+        .footer {
+            text-align: center;
+            color: #606070;
+            margin-top: 30px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>WinTune Pro - System Report</h1>
+            <div class="subtitle">Generated on 2026-03-29 00:07:07</div>
+        </div>
+
+        <div class="card">
+            <div class="health-score">
+                <div class="score">System.Collections.Hashtable</div>
+                <div class="label">System Health Score</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>System Information</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="label">Computer Name</div>
+                    <div class="value">DESKTOP-PSI3PBT</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Operating System</div>
+                    <div class="value">Microsoft Windows 11 Pro</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Processor</div>
+                    <div class="value">13th Gen Intel(R) Core(TM) i7-13650HX</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">CPU Cores / Threads</div>
+                    <div class="value">14 / 20</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Total Memory</div>
+                    <div class="value">23.78 GB</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Available Memory</div>
+                    <div class="value success">8.93 GB</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Disk Usage</h2>
+                        <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span><strong>C:</strong> - </span>
+                    <span>8.8 GB free of 99.3 GB</span>
+                </div>
+                <div class="disk-bar">
+                    <div class="disk-bar-fill" style="width: 91.1%; background: #E17055;"></div>
+                </div>
+                <div style="text-align: right; font-size: 12px; color: #A0A0B0;">91.1% used</div>
+            </div>             <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span><strong>D:</strong> - </span>
+                    <span>10.1 GB free of 26.9 GB</span>
+                </div>
+                <div class="disk-bar">
+                    <div class="disk-bar-fill" style="width: 62.5%; background: #FDCB6E;"></div>
+                </div>
+                <div style="text-align: right; font-size: 12px; color: #A0A0B0;">62.5% used</div>
+            </div>             <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span><strong>E:</strong> - </span>
+                    <span>188 GB free of 300 GB</span>
+                </div>
+                <div class="disk-bar">
+                    <div class="disk-bar-fill" style="width: 37.3%; background: #00B894;"></div>
+                </div>
+                <div style="text-align: right; font-size: 12px; color: #A0A0B0;">37.3% used</div>
+            </div>
+        </div>        <div class="card">
+            <h2>Benchmark Results</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="label">Overall Score</div>
+                    <div class="value">88</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">CPU Score</div>
+                    <div class="value">100</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Memory Score</div>
+                    <div class="value">100</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Disk Score</div>
+                    <div class="value">100</div>
+                </div>
+            </div>
+        </div>        <div class="footer">
+            <p>Generated by WinTune Pro v2.0</p>
+            <p>Session ID: WT20260329000644dd26784a</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,50 @@
+{
+    "General": {
+        "CreateRestorePoint": true,
+        "LogLevel": "Standard",
+        "AutoGenerateReports": true,
+        "ReportFormats": ["HTML", "Text"],
+        "DefaultMode": "Dashboard",
+        "Theme": "Dark"
+    },
+    "Cleaning": {
+        "CleanUserTemp": true,
+        "CleanSystemTemp": true,
+        "CleanBrowserCache": true,
+        "CleanWindowsUpdate": true,
+        "CleanPrefetch": false,
+        "CleanRecycleBin": true,
+        "CleanThumbnailCache": true,
+        "CleanIconCache": true,
+        "DeepClean": false,
+        "OlderThanDays": 0
+    },
+    "Optimization": {
+        "OptimizeServices": true,
+        "OptimizeStartup": true,
+        "OptimizeMemory": false,
+        "SetHighPerformance": true,
+        "ServiceCategories": ["Privacy", "Performance"]
+    },
+    "Network": {
+        "ResetTCPIP": true,
+        "ResetWinsock": true,
+        "FlushDNS": true,
+        "ResetAdapter": false,
+        "ClearARPCache": true,
+        "TuneTCP": false
+    },
+    "Safety": {
+        "MaxBackupAge": 30,
+        "RequireRestorePoint": true,
+        "WarnOnCriticalSystem": true,
+        "BlockHighRiskOnCritical": true,
+        "AutoRollbackOnError": false
+    },
+    "UI": {
+        "StartInExpertMode": false,
+        "ShowWizardOnFirstRun": true,
+        "MinimizeToTray": false,
+        "CloseToTray": false
+    }
+}

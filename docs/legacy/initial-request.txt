@@ -1,0 +1,21 @@
+activate and master all necessary skills required for coding, design and development
+act like a master expert of coding, design, software developement, .net, MSSQL, Micosoft Windows, Microsoft Office, all Microsoft applications and database
+master expert in network and connectivity
+master expert in windows server
+Master expert in powershell, windows commandline, windows command ine tools, dism, sfc, cleanmgr.
+
+The application worked, but not complete and not fully operational, still lot of erros and bugs
+i need a working version with the clear design with clear visual appearance
+
+Analyse the development so far,
+
+-use complete opensource and 100% free to use without any type of restrictions.
+-use an opensource and completely free scripts and tools for this project.
+-i want to use this for long time and make it easy for updates and upgrade without loosing any old data.
+-suggest all improvements and enhancements.
+-implement all the above suggested improvements as well as all new improvements and features as your expertise and experience, build everything and all required in detail for each and all and every sub levels and all options and all features added from first to last in order and perfect, as a perfect and complete and fully functional and industrial grade and fully efficient and powerfull and full featured and out of the box use.
+
+analyse and correct errors after building start from first until last, repeat the steps until all errors are fixed and your are 100% sure
+guide and advice step by step to perform actions.
+all files required to be generated locally so that i can copy paste or copy pasete text to create the files
+analyse and correct all errors, review your answers and repeate the steps until you are 100% sure and confident and the codes and files are 100% correct and apt

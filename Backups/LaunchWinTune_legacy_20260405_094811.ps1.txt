@@ -1,0 +1,860 @@
+﻿# WinTune Pro - Standalone Launcher
+# This script loads everything in the correct order and launches the GUI
+
+$ErrorActionPreference = "Continue"
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+Write-Host "" 
+Write-Host " ============================================================" -ForegroundColor Cyan
+Write-Host "           WinTune Pro - Enterprise System Optimizer" -ForegroundColor Cyan
+Write-Host " ============================================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Step 1: Load core files
+Write-Host "[1/4] Loading core modules..." -ForegroundColor Yellow
+$coreFiles = @(
+    "Config.ps1","Logger.ps1","State.ps1","AppCore.ps1","Helpers.ps1",
+    "SafetyNet.ps1","Safety.ps1","Rollback.ps1","Resume.ps1",
+    "HealthScore.ps1","ReportGenerator.ps1","AutoElevate.ps1",
+    "ParallelEngine.ps1","SelfHealing.ps1","ToolManager.ps1",
+    "Watchdog.ps1","ProfileManager.ps1","AutomationEngine.ps1"
+)
+$coreErrors = 0
+foreach ($cf in $coreFiles) {
+    $path = Join-Path (Join-Path $scriptRoot "Core") $cf
+    if (Test-Path $path) {
+        try { . $path } catch { Write-Host "  [ERR] $cf : $($_.Exception.Message)" -ForegroundColor Red; $coreErrors++ }
+    } else {
+        Write-Host "  [MISS] $cf" -ForegroundColor Red; $coreErrors++
+    }
+}
+Write-Host "  Core: $(if ($coreErrors -eq 0) { 'OK' } else { "$coreErrors errors" })" -ForegroundColor $(if ($coreErrors -eq 0) { "Green" } else { "Red" })
+
+# Step 2: Initialize
+Write-Host "[2/4] Initializing..." -ForegroundColor Yellow
+try {
+    Initialize-State -AppRoot $scriptRoot
+    Initialize-ConfigPaths -RootPath $scriptRoot
+    $sessionId = Get-StateValue -Key "SessionId"
+    Initialize-Logger -LogDirectory (Join-Path $scriptRoot "Logs") -SessionIdentifier $sessionId
+    Initialize-Application -RootPath $scriptRoot
+    Write-Host "  Initialize: OK" -ForegroundColor Green
+} catch {
+    Write-Host "  [ERR] Initialize: $($_.Exception.Message)" -ForegroundColor Red
+    return
+}
+
+# Step 3: Load UI and modules
+Write-Host "[3/4] Loading UI and modules..." -ForegroundColor Yellow
+. (Join-Path (Join-Path $scriptRoot "UI") "MainWindow.ps1")
+
+$modulesPath = Join-Path $scriptRoot "Modules"
+$moduleFiles = @(
+    "FeaturesRegistry.ps1",
+    "Cleaning\CleaningCore.ps1","Cleaning\AppCache.ps1","Cleaning\BrowserCache.ps1",
+    "Cleaning\BrowserDeep.ps1","Cleaning\BrowsersComplete.ps1","Cleaning\DeepClean.ps1",
+    "Cleaning\DeveloperCache.ps1","Cleaning\DeveloperTools.ps1","Cleaning\DriverStore.ps1",
+    "Cleaning\GamingPlatforms.ps1","Cleaning\GamingSocialCache.ps1","Cleaning\InstallerCache.ps1",
+    "Cleaning\LogCleanup.ps1","Cleaning\MicrosoftOffice.ps1","Cleaning\OfficeAppCache.ps1",
+    "Cleaning\PrivacyCleanup.ps1","Cleaning\RegistryCleaner.ps1","Cleaning\SystemCleanup.ps1",
+    "Cleaning\SystemFiles.ps1","Cleaning\SystemJunkCleaner.ps1","Cleaning\TempFiles.ps1",
+    "Cleaning\WindowsTraceClean.ps1","Cleaning\WindowsUpdateDeep.ps1",
+    "BrowserExtended\BrowserExtended.ps1","DefenderCleanup\DefenderCleanup.ps1",
+    "WUSourceReset\WUSourceReset.ps1",
+    "Optimization\OptimizationCore.ps1","Optimization\Memory.ps1","Optimization\PowerPlan.ps1",
+    "Optimization\RestorePoints.ps1","Optimization\SecurityReset.ps1","Optimization\Services.ps1","Optimization\Startup.ps1",
+    "NetworkReset\NetworkCore.ps1","NetworkReset\Adapter.ps1","NetworkReset\DNS.ps1",
+    "NetworkReset\NetworkAdvanced.ps1","NetworkReset\TCPIP.ps1","NetworkReset\Winsock.ps1",
+    "Tuning\TuningCore.ps1","Tuning\UITuning.ps1","Tuning\TCPTuning.ps1",
+    "Tuning\BootOptimization.ps1","Tuning\AdapterTuning.ps1",
+    "SystemRepair\SystemRepair.ps1","ScheduledTaskMgr\ScheduledTaskMgr.ps1",
+    "HostsManager\HostsManager.ps1","StartupEnhanced\StartupEnhanced.ps1",
+    "PowerPlanCustom\PowerPlanCustom.ps1","BatteryOptimizer\BatteryOptimizer.ps1",
+    "DNSOptimizer\DNSOptimizer.ps1","GamingOptimizer\GamingOptimizer.ps1",
+    "PrivacyControl\PrivacyControl.ps1","StorageHealth\StorageHealth.ps1",
+    "SophiaScript\SophiaIntegration.ps1","PrinterFix\PrinterFix.ps1",
+    "TaskScheduler\TaskScheduler.ps1","RemoteExecution\RemoteExecution.ps1",
+    "SystemInfo\SystemInfo.ps1","WindowsUpdateMgr\WindowsUpdateMgr.ps1",
+    "DriverMgr\DriverMgr.ps1","WindowsFeatures\WindowsFeatures.ps1",
+    "DebloatMgr\DebloatMgr.ps1","TweaksMgr\TweaksMgr.ps1","ProcessMgr\ProcessMgr.ps1",
+    "Benchmark\SystemBenchmark.ps1","TronScript\TronScript.ps1"
+)
+$modLoaded = 0; $modFailed = 0
+foreach ($mf in $moduleFiles) {
+    $path = Join-Path $modulesPath $mf
+    if (Test-Path $path) {
+        try { . $path; $modLoaded++ } catch { $modFailed++; Write-Host "  [ERR] $mf : $($_.Exception.Message)" -ForegroundColor Red }
+    }
+}
+Write-Host "  Modules: $modLoaded loaded" -ForegroundColor $(if ($modFailed -eq 0) { "Green" } else { "Yellow" })
+
+# Step 4: Create and show GUI
+Write-Host "[4/4] Launching GUI..." -ForegroundColor Yellow
+try {
+    $mainWindow = Initialize-MainWindow
+    if (-not $mainWindow) {
+        Write-Host "  [ERR] Failed to create window" -ForegroundColor Red
+        return
+    }
+    
+    # Bind all event handlers inline (not via Bind-EventHandlers)
+    
+    # Window controls
+    $closeBtn = Find-UIElement "CloseBtn"
+    if ($closeBtn) { $closeBtn.Add_Click({ $mainWindow.Close() }) }
+    $minBtn = Find-UIElement "MinimizeBtn"
+    if ($minBtn) { $minBtn.Add_Click({ $mainWindow.WindowState = "Minimized" }) }
+    
+    # Update dashboard
+    Update-DashboardStats
+    Update-Status -Text "Ready" -State "Ready"
+    Update-AdminBadge
+    Load-SettingsIntoUI
+    
+    # Quick Optimize
+    $btn = Find-UIElement "QuickOptimizeBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Running..." -State "Working"
+                Add-ActivityLog "Starting Quick Optimization..."
+                $result = Invoke-QuickOptimize -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+                Update-DashboardStats
+                Update-Status -Text "Completed" -State "Success"
+            } catch {
+                Update-Status -Text "Failed" -State "Error"
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # Master Clean
+    $btn = Find-UIElement "MasterCleanBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Cleaning..." -State "Working"
+                $result = Invoke-MasterClean -TestMode $false
+                Add-ActivityLog "Cleaned: $(Format-FileSize $result.SpaceRecovered)"
+                Update-DashboardStats
+                Update-Status -Text "Completed" -State "Success"
+            } catch {
+                Update-Status -Text "Failed" -State "Error"
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # Scan Cleaning
+    $btn = Find-UIElement "ScanCleaningBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Scanning..." -State "Working"
+                $result = Invoke-CleaningScan
+                Add-ActivityLog "Scan complete"
+                Update-Status -Text "Scan complete" -State "Success"
+            } catch {
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # Run Cleaning
+    $btn = Find-UIElement "RunCleaningBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Cleaning..." -State "Working"
+                $result = Invoke-Cleaning -Categories @("UserTemp","SystemTemp","RecycleBin","ThumbnailCache") -TestMode $false
+                Add-ActivityLog "Cleaned: $(Format-FileSize $result.SpaceRecovered)"
+                Update-DashboardStats
+                Update-Status -Text "Completed" -State "Success"
+            } catch {
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # Analyze Optimization
+    $btn = Find-UIElement "AnalyzeOptBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Analyzing..." -State "Working"
+                $result = Invoke-OptimizationAnalysis
+                Add-ActivityLog "Analysis complete: $($result.Recommendations.Count) recommendations"
+                Update-Status -Text "Analysis complete" -State "Success"
+            } catch {
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # Run Optimization
+    $btn = Find-UIElement "RunOptimizeBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Optimizing..." -State "Working"
+                $result = Invoke-Optimization -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+                Update-DashboardStats
+                Update-Status -Text "Completed" -State "Success"
+            } catch {
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # Network Reset
+    $btn = Find-UIElement "RunNetworkBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Resetting network..." -State "Working"
+                $result = Invoke-NetworkReset -Preview:$false
+                Add-ActivityLog "Network reset complete"
+                Update-Status -Text "Completed" -State "Success"
+            } catch {
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # DNS Flush
+    $btn = Find-UIElement "FlushDNSBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-FlushDNS
+                Add-ActivityLog "DNS cache flushed"
+            } catch {
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # Save Settings
+    $btn = Find-UIElement "SaveSettingsBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $restore = Find-UIElement "SettingAutoRestore"
+                if ($restore) { Set-ConfigValue "AutoRestorePoint" ([bool]$restore.IsChecked) }
+                $confirm = Find-UIElement "SettingConfirmations"
+                if ($confirm) { Set-ConfigValue "ShowConfirmations" ([bool]$confirm.IsChecked) }
+                $reports = Find-UIElement "SettingAutoReports"
+                if ($reports) { Set-ConfigValue "AutoGenerateReports" ([bool]$reports.IsChecked) }
+                $test = Find-UIElement "SettingTestMode"
+                if ($test) { Set-ConfigValue "TestMode" ([bool]$test.IsChecked) }
+                Save-Settings
+                [System.Windows.MessageBox]::Show("Settings saved!", "Success", "OK", "Information")
+            } catch {
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # Generate Report
+    $btn = Find-UIElement "GenerateHealthReportBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Generating report..." -State "Working"
+                $path = New-SystemReport -Format "HTML"
+                if ($path) {
+                    Add-ActivityLog "Report saved: $path"
+                    [System.Windows.MessageBox]::Show("Report saved to:`n$path", "Report Generated", "OK", "Information")
+                }
+                Update-Status -Text "Report generated" -State "Success"
+            } catch {
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # Create Restore Point
+    $btn = Find-UIElement "CreateRestoreBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Creating restore point..." -State "Working"
+                $result = New-SafeRestorePoint -Name "WinTune Pro Backup"
+                Add-ActivityLog $result.Message
+                Update-Status -Text $result.Message -State "Success"
+            } catch {
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error")
+            }
+        })
+    }
+    
+    # â”€â”€ NETWORK BUTTONS â”€â”€
+    
+    # Network Tuning
+    $btn = Find-UIElement "RunNetworkTuneBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Applying network tuning..." -State "Working"
+                $result = Invoke-NetworkTuning -Preview:$false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+                Update-Status -Text "Network tuning applied" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # DNS Buttons
+    $dnsProviders = @{
+        "DNSCloudflareBtn" = @{ Primary = "1.1.1.1"; Secondary = "1.0.0.1"; Name = "Cloudflare" }
+        "DNSGoogleBtn" = @{ Primary = "8.8.8.8"; Secondary = "8.8.4.4"; Name = "Google" }
+        "DNSQuad9Btn" = @{ Primary = "9.9.9.9"; Secondary = "149.112.112.112"; Name = "Quad9" }
+        "DNSOpenDNSBtn" = @{ Primary = "208.67.222.222"; Secondary = "208.67.220.220"; Name = "OpenDNS" }
+        "DNSAdGuardBtn" = @{ Primary = "94.140.14.14"; Secondary = "94.140.15.15"; Name = "AdGuard" }
+        "DNSNextDNSBtn" = @{ Primary = "45.90.28.167"; Secondary = "45.90.30.167"; Name = "NextDNS" }
+        "DNSControlDBtn" = @{ Primary = "76.76.2.0"; Secondary = "76.76.10.0"; Name = "Control D" }
+        "DNSDHCPBtn" = @{ Primary = ""; Secondary = ""; Name = "DHCP (Auto)" }
+    }
+    
+    foreach ($dnsBtnName in $dnsProviders.Keys) {
+        $dnsBtn = Find-UIElement $dnsBtnName
+        if ($dnsBtn) {
+            $provider = $dnsProviders[$dnsBtnName]
+            $dnsBtn.Add_Click({
+                try {
+                    if ($provider.Primary -eq "") {
+                        Reset-DNSToDHCP
+                        Add-ActivityLog "Reset DNS to DHCP"
+                    } else {
+                        Set-DNSServer -AdapterName (Get-NetAdapter | Where-Object Status -eq Up | Select-Object -First 1).Name -DNSServers @($provider.Primary, $provider.Secondary)
+                        Add-ActivityLog "Set DNS to $($provider.Name)"
+                    }
+                } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+            }.GetNewClosure())
+        }
+    }
+    
+    # DNS Benchmark
+    $btn = Find-UIElement "RunDNSBenchmarkBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Benchmarking DNS..." -State "Working"
+                $result = Invoke-DNSBenchmark
+                $fastest = $result | Where-Object Success | Sort-Object ResponseTime | Select-Object -First 1
+                Add-ActivityLog "Fastest DNS: $($fastest.Provider) ($($fastest.ResponseTime)ms)"
+                Update-Status -Text "Benchmark complete" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "AutoOptimizeDNSBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Auto-optimizing DNS..." -State "Working"
+                $fastest = Get-FastestDNS
+                if ($fastest) {
+                    $provider = (Get-DNSProviders).($fastest.Provider)
+                    Set-DNSServer -AdapterName (Get-NetAdapter | Where-Object Status -eq Up | Select-Object -First 1).Name -DNSServers @($provider.Primary, $provider.Secondary)
+                    Add-ActivityLog "Set fastest DNS: $($fastest.Provider)"
+                }
+                Update-Status -Text "DNS optimized" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "ResetDNSBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Reset-DNSToDHCP
+                Add-ActivityLog "Reset DNS to DHCP"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ GAMING BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "ToggleGameModeBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $status = Get-GameModeStatus
+                Set-GameMode -Enable (-not $status.Enabled)
+                Add-ActivityLog "Game Mode toggled"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "QuickGamingOptBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-GamingOptimization -Mode "Quick" -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "FullGamingOptBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-GamingOptimization -Mode "Full" -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "AggressiveGamingOptBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-GamingOptimization -Mode "Aggressive" -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "ClearSteamCacheBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Clear-GameCache -Steam $true -Epic $false -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "ClearEpicCacheBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Clear-GameCache -Steam $false -Epic $true -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "ClearAllGameCacheBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Clear-GameCache -All $true -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ PRIVACY BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "RunPrivacyScanBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Scanning privacy settings..." -State "Working"
+                $result = Invoke-PrivacyScan
+                Add-ActivityLog "Privacy scan complete"
+                Update-Status -Text "Privacy scan complete" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "ApplyPrivacyBasicBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-PrivacyOptimization -Mode "Basic" -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "ApplyPrivacyStrictBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-FullPrivacyOptimization -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "ApplyPrivacySettingsBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Apply-PrivacyAdditional -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ STORAGE BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "RunStorageScanBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Scanning storage..." -State "Working"
+                $result = Get-StorageRecommendations
+                Add-ActivityLog "Storage scan complete: $($result.Recommendations.Count) recommendations"
+                Update-Status -Text "Storage scan complete" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "EnableTRIMBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Enable-TRIM -TestMode $false
+                Add-ActivityLog "TRIM enabled"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "RunTRIMBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Running TRIM..." -State "Working"
+                $result = Invoke-TRIMOptimization -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+                Update-Status -Text "TRIM complete" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ BATTERY BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "BatteryLifeModeBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-BatteryOptimization -Mode "Battery" -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "BalancedModeBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-BatteryOptimization -Mode "Balanced" -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "PerformanceModeBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-BatteryOptimization -Mode "Performance" -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "GenerateBatteryReportBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $path = New-BatteryReport
+                if ($path) { Add-ActivityLog "Battery report: $path" }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ POWER PLAN BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "ApplyPowerPlanBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $combo = Find-UIElement "PowerPlanCombo"
+                if ($combo -and $combo.SelectedItem) {
+                    $planName = $combo.SelectedItem.Content
+                    Set-PowerPlan -Name $planName -Preview:$false
+                    Add-ActivityLog "Set power plan: $planName"
+                }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ BENCHMARK BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "RunBenchmarkBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Running full benchmark..." -State "Working"
+                $result = Invoke-SystemBenchmark -TestMode $false
+                Add-ActivityLog "Benchmark: $($result.Overall)/100 - $(Get-BenchmarkRating $result.Overall)"
+                Update-Status -Text "Benchmark complete: $($result.Overall)/100" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "QuickBenchmarkBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Running quick benchmark..." -State "Working"
+                $result = Invoke-SystemBenchmark -QuickMode $true -TestMode $false
+                Add-ActivityLog "Quick benchmark: $($result.Overall)/100"
+                Update-Status -Text "Quick benchmark complete: $($result.Overall)/100" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "ExportBenchmarkBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-SystemBenchmark -TestMode $false
+                $summary = Get-BenchmarkSummary -Results $result
+                $path = Join-Path $scriptRoot "Reports\benchmark_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
+                $summary | Format-Table -AutoSize | Out-File $path
+                Add-ActivityLog "Benchmark exported to: $path"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ SYSTEM REPAIR BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "RunSFCBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Running SFC scan..." -State "Working"
+                Invoke-SFCScan -Preview:$false
+                Update-Status -Text "SFC scan complete" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "RunDISMCheckBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Running DISM CheckHealth..." -State "Working"
+                Invoke-DISMCheck -Preview:$false
+                Update-Status -Text "DISM check complete" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "RunDISMRestoreBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Running DISM RestoreHealth..." -State "Working"
+                Invoke-DISMRestore -Preview:$false
+                Update-Status -Text "DISM restore complete" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "RunFullRepairBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Running full system repair..." -State "Working"
+                Invoke-FullSystemRepair -Preview:$false
+                Update-Status -Text "Full repair complete" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ REPORT BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "GenerateHealthReportBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Generating report..." -State "Working"
+                $path = New-SystemReport -Format "HTML"
+                if ($path) {
+                    Add-ActivityLog "Report saved: $path"
+                    [System.Windows.MessageBox]::Show("Report saved to:`n$path", "Success", "OK", "Information")
+                }
+                Update-Status -Text "Report generated" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "OpenReportsFolderBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $folder = Join-Path $scriptRoot "Reports"
+                if (Test-Path $folder) { Start-Process explorer.exe -ArgumentList $folder }
+            } catch { }
+        })
+    }
+    
+    # â”€â”€ SETTINGS BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "ResetSettingsBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Reset-Config
+                Load-SettingsIntoUI
+                [System.Windows.MessageBox]::Show("Settings reset to defaults", "Reset", "OK", "Information")
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ CLEANING SELECTION BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "SelectAllCleanBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $items = Find-UIElement "CleaningItemsList"
+                if ($items) { $items.Items | ForEach-Object { $_.IsChecked = $true } }
+            } catch { }
+        })
+    }
+    
+    $btn = Find-UIElement "DeselectAllCleanBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $items = Find-UIElement "CleaningItemsList"
+                if ($items) { $items.Items | ForEach-Object { $_.IsChecked = $false } }
+            } catch { }
+        })
+    }
+    
+    # â”€â”€ OPTIMIZATION BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "RunTuningBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Applying tuning..." -State "Working"
+                $tweaks = Get-SystemTweaks
+                foreach ($tweak in $tweaks) {
+                    if ($tweak.State -eq "Applied") {
+                        Apply-Tweak -TweakName $tweak.Name -TestMode $false | Out-Null
+                    }
+                }
+                Update-Status -Text "Tuning applied" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "RestoreDefaultsBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Restoring defaults..." -State "Working"
+                # Revert all tweaks
+                Add-ActivityLog "Default restoration initiated"
+                Update-Status -Text "Defaults restored" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ TWEAKS / BLOATWARE BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "ApplySophiaTweaksBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Invoke-SophiaTweaks -Preview:$false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    $btn = Find-UIElement "ApplyAllSophiaTweaksBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $result = Apply-AllToolsTweaks -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ TRONSCRIPT BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "TronBrowseBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                $dialog = New-Object System.Windows.Forms.OpenFileDialog
+                $dialog.Title = "Select tron.bat"
+                $dialog.Filter = "Batch files (*.bat)|*.bat|All files (*.*)|*.*"
+                if ($dialog.ShowDialog() -eq "OK") {
+                    $tronPathText = Find-UIElement "TronPathText"
+                    if ($tronPathText) { $tronPathText.Text = $dialog.FileName }
+                    $tronRunBtn = Find-UIElement "TronRunBtn"
+                    if ($tronRunBtn) { $tronRunBtn.IsEnabled = $true }
+                }
+            } catch { }
+        })
+    }
+    
+    # â”€â”€ WINDOW CONTROL BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "MaximizeBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                if ($mainWindow.WindowState -eq "Maximized") {
+                    $mainWindow.WindowState = "Normal"
+                } else {
+                    $mainWindow.WindowState = "Maximized"
+                }
+            } catch { }
+        })
+    }
+    
+    # â”€â”€ AUTOMATION BUTTONS â”€â”€
+    
+    $btn = Find-UIElement "RunFullAutomateBtn"
+    if ($btn) {
+        $btn.Add_Click({
+            try {
+                Update-Status -Text "Running full automation..." -State "Working"
+                Add-ActivityLog "Starting full automation sequence..."
+                $result = Invoke-QuickOptimize -TestMode $false
+                foreach ($a in $result.Actions) { Add-ActivityLog $a }
+                Update-DashboardStats
+                Update-Status -Text "Full automation complete" -State "Success"
+            } catch { [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", "OK", "Error") }
+        })
+    }
+    
+    # â”€â”€ TIMER FOR CLOCK â”€â”€
+    $timer = New-Object System.Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromSeconds(30)
+    $timer.Add_Tick({
+        $timeText = Find-UIElement "TimeText"
+        if ($timeText) { $timeText.Text = Get-Date -Format "HH:mm:ss" }
+    })
+    $timer.Start()
+    
+    Write-Host "  GUI launched successfully!" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  Click buttons in the GUI window to test functionality." -ForegroundColor Cyan
+    Write-Host "  Close the GUI window to exit." -ForegroundColor DarkGray
+    Write-Host ""
+    
+    $mainWindow.ShowDialog() | Out-Null
+    
+    Write-Host "GUI closed." -ForegroundColor DarkGray
+} catch {
+    Write-Host "  [ERR] $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host $_.ScriptStackTrace -ForegroundColor Gray
+}
+

@@ -1,0 +1,27 @@
+﻿{
+    "Theme":  "Light",
+    "AutoDeleteBackups":  true,
+    "CriticalDeviceList":  [
+                               "sqlservr",
+                               "store",
+                               "Exchange",
+                               "dc"
+                           ],
+    "AutoApproveFileEdits":  false,
+    "LogLevel":  "standard",
+    "ScanExclusions":  [
+
+                       ],
+    "ShowConfirmations":  false,
+    "AutoGenerateReports":  true,
+    "AutoRestorePoint":  true,
+    "LastSessionState":  {
+                             "LastSpaceRecovered":  0,
+                             "LastRunTime":  "2026-04-05 09:40:32",
+                             "SessionId":  "4a0d06261071"
+                         },
+    "TestMode":  false,
+    "BackupRetentionDays":  30,
+    "DefaultPowerPlan":  "HighPerformance",
+    "SilentMode":  true
+}

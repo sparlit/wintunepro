@@ -33,7 +33,7 @@ function global:Show-Help {
     Write-Host ""
     Write-Host "WinTune Pro - Windows System Optimizer" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "Usage: WinTune.ps1 [-NoGUI] [-TestMode] [-Silent] [-QuickCleanup] [-FullOptimization] [-Preview] [-Status] [-Backup] [-Restore] [-Monitor] [-MemoryCleanup] [-EmergencyRepair] [-HealthCheck] [-AutoRun] [-Help]" -ForegroundColor White
+    Write-Host "Usage: WinTune.ps1 [-NoGUI] [-TestMode] [-Silent] [-QuickCleanup] [-FullOptimization] [-Preview] [-Status] [-Backup] [-Restore] [-Monitor] [-MemoryCleanup] [-EmergencyRepair] [-HealthCheck] [-AutoRun] [-Diagnostics] [-Recommendations] [-SystemReport] [-ListProfiles] [-ApplyProfile <Name>] [-ExportProfile <Name>] [-ImportProfile <Path>] [-CompareProfiles <A,B>] [-ReportFormat <HTML|TXT>] [-Help]" -ForegroundColor White
     Write-Host ""
     Write-Host "Options:" -ForegroundColor Yellow
     Write-Host "  -NoGUI             Run in command-line mode (no GUI)"
@@ -50,6 +50,15 @@ function global:Show-Help {
     Write-Host "  -EmergencyRepair   Run SFC/DISM system repair"
     Write-Host "  -HealthCheck       Quick system health check"
     Write-Host "  -AutoRun           Run full sequential workflow (analyze -> optimize -> clean)"
+    Write-Host "  -Diagnostics       Show report/system snapshot, automation state, and health summary"
+    Write-Host "  -Recommendations   Show health-based recommendations"
+    Write-Host "  -SystemReport      Generate a system health report using -ReportFormat"
+    Write-Host "  -ListProfiles      List built-in and custom profiles"
+    Write-Host "  -ApplyProfile      Apply a named profile (supports -Preview)"
+    Write-Host "  -ExportProfile     Export a named profile to the Reports folder as JSON"
+    Write-Host "  -ImportProfile     Import a profile JSON file as a custom profile"
+    Write-Host "  -CompareProfiles   Compare two profiles using 'ProfileA,ProfileB'"
+    Write-Host "  -ReportFormat      Preferred report format for report-oriented commands (HTML or TXT)"
     Write-Host "  -Help              Show this help message"
     Write-Host ""
     Write-Host "New Features:" -ForegroundColor Cyan
@@ -60,6 +69,8 @@ function global:Show-Help {
     Write-Host "  - Live CLI monitoring mode"
     Write-Host "  - Memory cleanup function"
     Write-Host "  - Emergency system repair (SFC + DISM)"
+    Write-Host "  - Diagnostics and recommendation views from health/report engines"
+    Write-Host "  - Profile listing, apply, import/export, and partial comparison commands"
     Write-Host "  - SIMULATION badge when Test Mode is active"
     Write-Host ""
     Write-Host "Features:" -ForegroundColor Yellow

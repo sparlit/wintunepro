@@ -16,6 +16,16 @@ param(
     [switch]$EmergencyRepair,
     [switch]$HealthCheck,
     [switch]$AutoRun,
+    [switch]$Diagnostics,
+    [switch]$Recommendations,
+    [switch]$SystemReport,
+    [switch]$ListProfiles,
+    [string]$ApplyProfile,
+    [string]$ExportProfile,
+    [string]$ImportProfile,
+    [string]$CompareProfiles,
+    [ValidateSet("HTML", "TXT")]
+    [string]$ReportFormat = "HTML",
     [switch]$Elevated,
     [switch]$NoExit
 )
@@ -2023,7 +2033,7 @@ function global:Run-CLI-FullOptimization {
     Write-Host "  [OK] Startup optimized" -ForegroundColor Green
     
     Write-Host "[6/6] Generating Report..." -ForegroundColor Yellow
-    $reportPath = New-SystemReport -Format "Text"
+    $reportPath = New-SystemReport -Format $ReportFormat
     Write-Host "  [OK] Report saved: $reportPath" -ForegroundColor Green
     
     Write-Host ""
@@ -2222,208 +2232,37 @@ function global:Run-CLI-RepairMenu {
 
 function global:Run-CLI-GamingOptimize {
     $testMode = Get-ConfigValue "TestMode"
-    
+
     Write-Host "Enabling Gaming Mode..." -ForegroundColor Yellow
-    
+
     if (-not $testMode) {
-        # Enable Game Mode
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\GameBar" -Name "AutoGameModeEnabled" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
-        Write-Host "  [OK] Game Mode enabled" -ForegroundColor Green
-        
-        # Disable unnecessary services for gaming
-        Write-Host "  Optimizing for gaming..." -ForegroundColor Yellow
+        try {
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\GameBar" -Name "AutoGameModeEnabled" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
+            Write-Host "  [OK] Game Mode enabled" -ForegroundColor Green
+            Write-Host "  Optimizing for gaming..." -ForegroundColor Yellow
+        } catch {
+            Write-Host "  [WARN] Could not fully enable Game Mode: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
     } else {
         Write-Host "  [TEST] Would enable Gaming Mode" -ForegroundColor Cyan
     }
-    
+
     Write-Host ""
-# Load GUI launcher helpers
-. "$scriptRoot\Core\GUILauncher.ps1"
-    Write-Host "       [OK] Health assessment complete" -ForegroundColor Green
-    
-    # ═══════════════════════════════════════════════════════════════════
-    # STEP 2: SYSTEM SCAN
-    # ═══════════════════════════════════════════════════════════════════
-    Write-Host ""
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    Write-Host "STEP 2: SYSTEM SCAN" -ForegroundColor Cyan
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    
-    Write-Host "[2.1] Scanning for cleanable files..." -ForegroundColor Yellow
-    $scanResults = Invoke-CleaningScan
-    $totalRecoverable = [math]::Round($scanResults.TotalSize / 1024, 2)
-    Write-Host "       Total recoverable: $totalRecoverable GB" -ForegroundColor Green
-    Write-Host "       [OK] Scan complete" -ForegroundColor Green
-    
-    # ═══════════════════════════════════════════════════════════════════
-    # STEP 3: QUICK OPTIMIZE
-    # ═══════════════════════════════════════════════════════════════════
-    Write-Host ""
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    Write-Host "STEP 3: QUICK OPTIMIZE" -ForegroundColor Cyan
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    
-    Write-Host "[3.1] Setting High Performance Power Plan..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        powercfg /setactive SCHEME_MIN 2>&1 | Out-Null
-    }
-    Write-Host "       [OK] Power plan set" -ForegroundColor Green
-    
-    Write-Host "[3.2] Disabling telemetry..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -Force -ErrorAction SilentlyContinue
-    }
-    Write-Host "       [OK] Telemetry disabled" -ForegroundColor Green
-    
-    Write-Host "[3.3] Optimizing memory..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        [System.GC]::Collect()
-        [System.GC]::WaitForPendingFinalizers()
-    }
-    Write-Host "       [OK] Memory optimized" -ForegroundColor Green
-    
-    # ═══════════════════════════════════════════════════════════════════
-    # STEP 4: SYSTEM CLEANING
-    # ═══════════════════════════════════════════════════════════════════
-    Write-Host ""
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    Write-Host "STEP 4: SYSTEM CLEANING" -ForegroundColor Cyan
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    
-    Write-Host "[4.1] Cleaning user temp files..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        $null = Invoke-Cleaning -Categories @("UserTemp") -TestMode $false
-    }
-    Write-Host "       [OK] User temp cleaned" -ForegroundColor Green
-    
-    Write-Host "[4.2] Cleaning system temp files..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        $null = Invoke-Cleaning -Categories @("SystemTemp") -TestMode $false
-    }
-    Write-Host "       [OK] System temp cleaned" -ForegroundColor Green
-    
-    Write-Host "[4.3] Clearing Recycle Bin..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        $null = Invoke-Cleaning -Categories @("RecycleBin") -TestMode $false
-    }
-    Write-Host "       [OK] Recycle Bin cleared" -ForegroundColor Green
-    
-    Write-Host "[4.4] Cleaning browser caches..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        $null = Invoke-Cleaning -Categories @("ChromeCache", "EdgeCache") -TestMode $false
-    }
-    Write-Host "       [OK] Browser caches cleaned" -ForegroundColor Green
-    
-    # ═══════════════════════════════════════════════════════════════════
-    # STEP 5: NETWORK OPTIMIZATION
-    # ═══════════════════════════════════════════════════════════════════
-    Write-Host ""
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    Write-Host "STEP 5: NETWORK OPTIMIZATION" -ForegroundColor Cyan
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    
-    Write-Host "[5.1] Flushing DNS cache..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        ipconfig /flushdns | Out-Null
-    }
-    Write-Host "       [OK] DNS cache flushed" -ForegroundColor Green
-    
-    Write-Host "[5.2] Setting optimal DNS (Cloudflare)..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        Set-DNSServer -Primary "1.1.1.1" -Secondary "1.0.0.1" 2>&1 | Out-Null
-    }
-    Write-Host "       [OK] DNS set to 1.1.1.1" -ForegroundColor Green
-    
-    # ═══════════════════════════════════════════════════════════════════
-    # STEP 6: DISK OPTIMIZATION
-    # ═══════════════════════════════════════════════════════════════════
-    Write-Host ""
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    Write-Host "STEP 6: DISK OPTIMIZATION" -ForegroundColor Cyan
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    
-    Write-Host "[6.1] Clearing thumbnail cache..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        $null = Invoke-Cleaning -Categories @("ThumbnailCache") -TestMode $false
-    }
-    Write-Host "       [OK] Thumbnail cache cleared" -ForegroundColor Green
-    
-    Write-Host "[6.2] Clearing Windows Update cache..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        $wuCachePath = "$env:SystemRoot\SoftwareDistribution\Download"
-        if (Test-Path $wuCachePath) {
-            Get-ChildItem $wuCachePath -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        }
-    }
-    Write-Host "       [OK] Windows Update cache cleared" -ForegroundColor Green
-    
-    Write-Host "[6.3] Clearing old log files..." -ForegroundColor Yellow
-    if (-not $testMode) {
-        $logPaths = @("$env:SystemRoot\Logs", "$env:SystemRoot\Panther")
-        foreach ($logPath in $logPaths) {
-            if (Test-Path $logPath) {
-                Get-ChildItem $logPath -Filter "*.log" -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | Remove-Item -Force -ErrorAction SilentlyContinue
+    Write-Host "Applying gaming optimization profile..." -ForegroundColor Yellow
+
+    try {
+        $result = Invoke-GamingOptimization -Mode "Quick" -TestMode $testMode
+        if ($result -and $result.Actions) {
+            foreach ($action in $result.Actions) {
+                Write-Host "  $action" -ForegroundColor White
             }
         }
+        Write-Host ""
+        Write-Host "[OK] Gaming optimization complete" -ForegroundColor Green
+    } catch {
+        Write-Host ""
+        Write-Host "[ERROR] Gaming optimization failed: $($_.Exception.Message)" -ForegroundColor Red
     }
-    Write-Host "       [OK] Old log files cleared" -ForegroundColor Green
-    
-    # ═══════════════════════════════════════════════════════════════════
-    # STEP 7: SERVICE OPTIMIZATION
-    # ═══════════════════════════════════════════════════════════════════
-    Write-Host ""
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    Write-Host "STEP 7: SERVICE OPTIMIZATION" -ForegroundColor Cyan
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    
-    Write-Host "[7.1] Checking unnecessary services..." -ForegroundColor Yellow
-    $unnecessaryServices = @("DiagTrack", "MapsBroker", "RemoteRegistry", "Spooler")
-    $stoppedCount = 0
-    foreach ($svc in $unnecessaryServices) {
-        try {
-            $service = Get-Service -Name $svc -ErrorAction SilentlyContinue
-            if ($service -and $service.StartType -eq "Automatic" -and $service.Status -eq "Running") {
-                if (-not $testMode) {
-                    # Don't actually stop services in test mode, just report
-                }
-                $stoppedCount++
-            }
-        } catch { }
-    }
-    Write-Host "       Found $stoppedCount unnecessary auto-start services" -ForegroundColor Yellow
-    Write-Host "       [OK] Services checked" -ForegroundColor Green
-    
-    # ═══════════════════════════════════════════════════════════════════
-    # STEP 8: FINAL HEALTH CHECK
-    # ═══════════════════════════════════════════════════════════════════
-    Write-Host ""
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    Write-Host "STEP 8: FINAL HEALTH CHECK" -ForegroundColor Cyan
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
-    
-    Write-Host "[8.1] Running final health assessment..." -ForegroundColor Yellow
-    $finalHealth = Get-SystemHealthScore
-    Write-Host "       Final Health Score: $($finalHealth.TotalScore)/100" -ForegroundColor $(if($finalHealth.TotalScore -ge 70){ "Green" }elseif($finalHealth.TotalScore -ge 50){ "Yellow" }else{ "Red" })
-    Write-Host "       [OK] Final health check complete" -ForegroundColor Green
-    
-    # ═══════════════════════════════════════════════════════════════════
-    # SUMMARY
-    # ═══════════════════════════════════════════════════════════════════
-    $totalEndTime = Get-Date
-    $duration = $totalEndTime - $totalStartTime
-    
-    Write-Host ""
-    Write-Host "╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-    Write-Host "║                    WORKFLOW COMPLETE                          ║" -ForegroundColor Cyan
-    Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "Duration: $($duration.ToString('mm\:ss'))" -ForegroundColor White
-    Write-Host "Initial Health: $($health.TotalScore)/100" -ForegroundColor White
-    Write-Host "Final Health: $($finalHealth.TotalScore)/100" -ForegroundColor $(if($finalHealth.TotalScore -gt $health.TotalScore){ "Green" }elseif($finalHealth.TotalScore -eq $health.TotalScore){ "Yellow" }else{ "Red" })
-    Write-Host "Space Recovered: ~$totalRecoverable GB" -ForegroundColor White
-    Write-Host ""
-    Write-Host "System has been optimized and cleaned!" -ForegroundColor Green
-    Write-Host ""
 }
 
 # Main entry point
@@ -2431,6 +2270,166 @@ if ($Help) {
     Show-Banner
     Show-Help
     exit 0
+}
+
+function global:Show-DiagnosticsSnapshot {
+    Load-AppModules
+    Write-Host ""
+    Write-Host "=== DIAGNOSTICS SNAPSHOT ===" -ForegroundColor Cyan
+    Write-Host ""
+
+    try {
+        $info = Get-ReportSystemInfo
+        Write-Host "Computer Name    : $($info.ComputerName)"
+        Write-Host "User Name        : $($info.UserName)"
+        Write-Host "OS Version       : $($info.OSVersion)"
+        Write-Host "OS Build         : $($info.OSBuild)"
+        Write-Host "CPU              : $($info.CPU)"
+        Write-Host "RAM              : $($info.RAM)"
+        Write-Host "PowerShell       : $($info.PowerShellVersion)"
+        Write-Host "Primary Adapter  : $($info.NetworkAdapter)"
+    } catch {
+        Write-Host "[WARN] Could not gather report system info: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+
+    try {
+        $status = Get-AutomationStatus
+        if ($status) {
+            Write-Host ""
+            Write-Host "Automation Status:" -ForegroundColor Yellow
+            Write-Host "  Running              : $($status.IsRunning)"
+            Write-Host "  Current Operation    : $($status.CurrentOperation)"
+            Write-Host "  Completed Operations : $($status.CompletedOperations)"
+            Write-Host "  Failed Operations    : $($status.FailedOperations)"
+            Write-Host "  Space Recovered      : $($status.TotalSpaceRecovered)"
+        }
+    } catch {
+        Write-Host "[WARN] Could not gather automation status: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+
+    try {
+        $health = Get-SystemHealthScore
+        Write-Host ""
+        Write-Host "Health Summary:" -ForegroundColor Yellow
+        Write-Host "  Total Score          : $($health.TotalScore)/$($health.MaxScore)"
+        Write-Host "  Grade                : $($health.Grade)"
+        foreach ($category in $health.Categories) {
+            $name = if ($category.Name) { $category.Name } else { "Category" }
+            Write-Host "  - $name : $($category.Score)/$($category.MaxScore)"
+        }
+    } catch {
+        Write-Host "[WARN] Could not gather health summary: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}
+
+function global:Export-SystemReport {
+    Load-AppModules
+
+    try {
+        $reportPath = New-SystemReport -Format $ReportFormat
+        if ($reportPath) {
+            Write-Host "[SUCCESS] Report generated: $reportPath" -ForegroundColor Green
+        } else {
+            Write-Host "[ERROR] Report generation returned no output path." -ForegroundColor Red
+        }
+    } catch {
+        Write-Host "[ERROR] Failed to generate report: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+function global:Show-HealthRecommendations {
+    Load-AppModules
+    try {
+        $health = Get-SystemHealthScore
+        $recommendations = Get-HealthRecommendations -HealthScore $health
+
+        Write-Host ""
+        Write-Host "=== HEALTH RECOMMENDATIONS ===" -ForegroundColor Cyan
+        Write-Host ""
+
+        if (-not $recommendations -or $recommendations.Count -eq 0) {
+            Write-Host "No recommendations available." -ForegroundColor Green
+            return
+        }
+
+        foreach ($recommendation in $recommendations) {
+            Write-Host "[$($recommendation.Priority)] $($recommendation.Category) - $($recommendation.Title)" -ForegroundColor Yellow
+            Write-Host "  $($recommendation.Details)" -ForegroundColor White
+        }
+    } catch {
+        Write-Host "[ERROR] Failed to build recommendations: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+function global:Initialize-ProfileSubsystem {
+    $paths = Get-Paths
+    $dataRoot = if ($paths -and $paths.Data) { $paths.Data } else { Join-Path $scriptRoot "Data" }
+    Initialize-ProfileManager -DataDirectory $dataRoot | Out-Null
+}
+
+function global:Show-ProfilesList {
+    Load-AppModules
+    Initialize-ProfileSubsystem
+
+    Write-Host ""
+    Write-Host "=== AVAILABLE PROFILES ===" -ForegroundColor Cyan
+    Write-Host ""
+
+    $profiles = Get-AvailableProfiles
+    foreach ($profile in $profiles) {
+        $activeMark = if ($profile.Active) { "*" } else { " " }
+        $builtInMark = if ($profile.BuiltIn) { "Built-in" } else { "Custom" }
+        Write-Host "[$activeMark] $($profile.Name) - $($profile.Category) - $builtInMark"
+        Write-Host "    $($profile.Description)"
+    }
+}
+
+function global:Invoke-ProfileApply {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    Load-AppModules
+    Initialize-ProfileSubsystem
+
+    Write-Host ""
+    Write-Host "Applying profile: $Name" -ForegroundColor Cyan
+    $result = Set-ActiveProfile -Name $Name -Preview:$Preview
+
+    if ($Preview) {
+        if ($result) {
+            Write-Host "[PREVIEW] Profile '$Name' is valid and would be applied." -ForegroundColor Yellow
+        } else {
+            Write-Host "[ERROR] Profile '$Name' was not found." -ForegroundColor Red
+        }
+        return
+    }
+
+    if (-not $result) {
+        Write-Host "[ERROR] Failed to apply profile '$Name'." -ForegroundColor Red
+        return
+    }
+
+    if ($result.Success) {
+        Write-Host "[SUCCESS] Applied profile '$Name'" -ForegroundColor Green
+        if ($result.Changes) {
+            foreach ($change in $result.Changes) {
+                Write-Host "  - $change"
+            }
+        }
+        if ($result.Errors -and $result.Errors.Count -gt 0) {
+            Write-Host "Warnings/Errors:" -ForegroundColor Yellow
+            foreach ($err in $result.Errors) {
+                Write-Host "  - $err" -ForegroundColor Yellow
+            }
+        }
+    } else {
+        Write-Host "[ERROR] Profile '$Name' completed with failures." -ForegroundColor Red
+        foreach ($err in $result.Errors) {
+            Write-Host "  - $err" -ForegroundColor Red
+        }
+    }
 }
 
 if (Initialize-App) {
@@ -2505,7 +2504,7 @@ if (Initialize-App) {
             
             # Report
             Write-Host "  [6/6] Generating report..." -ForegroundColor Yellow
-            $reportPath = New-SystemReport -Format "HTML"
+            $reportPath = New-SystemReport -Format $ReportFormat
             Write-Host "  Report saved: $reportPath" -ForegroundColor Green
             
             Write-Host "[SUCCESS] Full optimization complete!" -ForegroundColor Green
@@ -2609,6 +2608,87 @@ if (Initialize-App) {
         Invoke-SessionCleanup
         exit 0
     }
+
+    if ($Diagnostics) {
+        Show-DiagnosticsSnapshot
+        Invoke-SessionCleanup
+        exit 0
+    }
+
+    if ($Recommendations) {
+        Show-HealthRecommendations
+        Invoke-SessionCleanup
+        exit 0
+    }
+
+    if ($SystemReport) {
+        Export-SystemReport
+        Invoke-SessionCleanup
+        exit 0
+    }
+
+    if ($ListProfiles) {
+        Show-ProfilesList
+        Invoke-SessionCleanup
+        exit 0
+    }
+
+    if ($ApplyProfile) {
+        Invoke-ProfileApply -Name $ApplyProfile
+        Invoke-SessionCleanup
+        exit 0
+    }
+
+    if ($ExportProfile) {
+        Load-AppModules
+        Initialize-ProfileSubsystem
+        $exportPath = Join-Path $scriptRoot "Reports\$($ExportProfile)_profile.json"
+        if (Export-Profile -Name $ExportProfile -OutputPath $exportPath) {
+            Write-Host "[SUCCESS] Exported profile to $exportPath" -ForegroundColor Green
+        } else {
+            Write-Host "[ERROR] Failed to export profile '$ExportProfile'" -ForegroundColor Red
+        }
+        Invoke-SessionCleanup
+        exit 0
+    }
+
+    if ($ImportProfile) {
+        Load-AppModules
+        Initialize-ProfileSubsystem
+        $imported = Import-Profile -FilePath $ImportProfile
+        if ($imported) {
+            Write-Host "[SUCCESS] Imported profile: $($imported.Name)" -ForegroundColor Green
+        } else {
+            Write-Host "[ERROR] Failed to import profile from '$ImportProfile'" -ForegroundColor Red
+        }
+        Invoke-SessionCleanup
+        exit 0
+    }
+
+    if ($CompareProfiles) {
+        Load-AppModules
+        Initialize-ProfileSubsystem
+        $parts = $CompareProfiles -split ',', 2
+        if ($parts.Count -ne 2) {
+            Write-Host "[ERROR] Use -CompareProfiles 'ProfileA,ProfileB'" -ForegroundColor Red
+        } else {
+            $comparison = Compare-Profiles -ProfileA $parts[0].Trim() -ProfileB $parts[1].Trim()
+            if ($comparison) {
+                Write-Host ""
+                Write-Host "Comparing $($comparison.ProfileA) vs $($comparison.ProfileB)" -ForegroundColor Cyan
+                Write-Host "Total Differences: $($comparison.TotalDiffs)"
+                foreach ($diff in $comparison.Differences) {
+                    Write-Host "  [$($diff.Section)] $($diff.Value)"
+                    Write-Host "    A: $($diff.InA)"
+                    Write-Host "    B: $($diff.InB)"
+                }
+            } else {
+                Write-Host "[ERROR] Could not compare the requested profiles." -ForegroundColor Red
+            }
+        }
+        Invoke-SessionCleanup
+        exit 0
+    }
     
     # Handle AutoRun - Sequential automated workflow without prompts
     if ($AutoRun) {
@@ -2624,4 +2704,3 @@ if (Initialize-App) {
         Start-GUIMode
     }
 }
-

@@ -60,36 +60,6 @@ function global:Initialize-Application {
     return $true
 }
 
-# Load all modules
-function global:Load-Modules {
-    $modulesPath = Join-Path (Get-ConfigValue "RootPath") "Modules"
-
-    Log-Info "Loading modules from: $modulesPath" -Category "Core"
-
-    # Get all module directories
-    $moduleDirs = Get-ChildItem -Path $modulesPath -Directory
-
-    foreach ($dir in $moduleDirs) {
-        $moduleFile = Get-ChildItem -Path $dir.FullName -Filter "*.ps1" -File | Select-Object -First 1
-
-        if ($moduleFile) {
-            try {
-                . $moduleFile.FullName
-                $script:Modules[$dir.Name] = @{
-                    Name = $dir.Name
-                    Path = $moduleFile.FullName
-                    Loaded = $true
-                }
-                Log-Info "Loaded module: $($dir.Name)" -Category "Core"
-            } catch {
-                Log-Error "Failed to load module: $($dir.Name) - $($_.Exception.Message)" -Category "Core"
-            }
-        }
-    }
-
-    return $script:Modules.Count
-}
-
 # Get module status
 function global:Get-ModuleStatus {
     return $script:Modules

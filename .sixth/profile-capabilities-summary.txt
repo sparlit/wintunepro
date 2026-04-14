@@ -1,0 +1,296 @@
+Core/ProfileManager.ps1 capability summary for safe surfacing in WinTune.ps1
+
+Inspected file:
+- Core/ProfileManager.ps1
+
+Top-level state/data:
+- Built-in profiles are defined in $script:BuiltinProfiles
+- Built-in profile names:
+  - Gaming
+  - Office
+  - Multimedia
+  - Developer
+  - Privacy
+  - Performance
+  - Balanced
+  - Battery
+- Manager persists data under a profiles directory passed to Initialize-ProfileManager
+- Active profile persistence file:
+  - active_profile.txt
+- Custom profile storage:
+  - profiles/custom/*.json
+
+Exact functions and expected behaviors:
+
+1) Initialize-ProfileManager
+Signature:
+- Initialize-ProfileManager -DataDirectory <string>
+
+Behavior:
+- Initializes profile storage under <DataDirectory>\profiles
+- Ensures these directories exist:
+  - profiles
+  - profiles\custom
+- Loads custom profiles from profiles\custom\*.json using ConvertFrom-Json
+- Loads active profile name from profiles\active_profile.txt if present
+- Logs initialization results with counts of built-in and custom profiles
+
+CLI/menu surfacing ideas:
+- Safe startup/bootstrap call before any profile command
+- Could back a "profiles init/status" path, but mostly an internal prerequisite
+
+2) Get-AvailableProfiles
+Signature:
+- Get-AvailableProfiles
+
+Behavior:
+- Returns combined built-in and custom profile metadata as PSCustomObject items
+- Output properties:
+  - Name
+  - Description
+  - Category
+  - BuiltIn
+  - Active
+- For custom profiles, Category defaults to "Custom" if missing
+- Active is true when profile name matches the persisted/current active profile
+
+CLI/menu surfacing ideas:
+- List profiles
+- Show active marker
+- Filter/group by category in menu
+
+3) Get-ActiveProfile
+Signature:
+- Get-ActiveProfile
+
+Behavior:
+- Returns $null if no active profile is set
+- Returns full built-in or custom profile object matching $script:ActiveProfile
+- Returned object may include:
+  - Name
+  - Description
+  - Category
+  - Services
+  - Startup
+  - PowerPlan
+  - Privacy
+  - Network
+  - VisualEffects
+  - RegistryTweaks
+
+CLI/menu surfacing ideas:
+- Show current active profile details
+- "profile current" command
+
+4) Set-ActiveProfile
+Signature:
+- Set-ActiveProfile -Name <string> [-Preview]
+
+Behavior:
+- Resolves the named profile from built-in first, then custom profiles
+- Returns $false if the profile does not exist
+- With -Preview:
+  - Does not apply changes
+  - Logs "[PREVIEW] Would apply profile: <Name>"
+  - Returns $true
+- Without -Preview:
+  - Applies supported settings and returns a result hashtable with:
+    - Success
+    - Profile
+    - Changes
+    - Errors
+- Current implemented apply actions:
+  - Services
+    - Disables services listed in Services.Disable
+    - Sets services in Services.Auto to Automatic
+    - Sets services in Services.Manual to Manual
+    - Stops disabled services if currently running
+  - Power plan
+    - Supports exact names:
+      - Balanced
+      - High Performance
+      - Power Saver
+      - Ultimate Performance
+    - For Ultimate Performance, duplicates the scheme first if needed
+    - Activates via powercfg /setactive
+  - Registry tweaks
+    - Creates missing registry paths
+    - Applies Set-ItemProperty for each tweak object with Path, Name, Value, Type
+  - Visual effects
+    - Animations: toggles HKCU:\Control Panel\Desktop\WindowMetrics MinAnimate
+    - Transparency: toggles HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize EnableTransparency
+- Persists active profile name to profiles\active_profile.txt
+
+Important limitations for parent integration:
+- Although profiles contain Privacy, Network, and most Startup data, Set-ActiveProfile does not currently implement explicit application logic for:
+  - Privacy hashtable values
+  - Network hashtable values
+  - Startup.Disable entries
+  - VisualEffects Shadows/SmoothEdges beyond Animations/Transparency
+- Therefore safest CLI surfacing is "apply profile" with accurate messaging that only currently implemented parts are actually enforced
+
+CLI/menu surfacing ideas:
+- Apply profile
+- Preview profile apply
+- Show result summary: changes count and errors count
+- Good candidate commands:
+  - profile apply <name>
+  - profile preview <name>
+
+5) New-CustomProfile
+Signature:
+- New-CustomProfile -Name <string> -Description <string> [-BasedOn <string>] [-Services <hashtable>] [-Startup <hashtable>] [-PowerPlan <string>] [-Privacy <hashtable>] [-Network <hashtable>] [-VisualEffects <hashtable>] [-RegistryTweaks <array>]
+
+Behavior:
+- Creates a new custom profile in memory and on disk
+- Rejects duplicate names across built-in and custom profiles
+- Optional -BasedOn can clone from an existing built-in or custom profile
+- For each section:
+  - Uses provided values when supplied
+  - Otherwise inherits from base profile if present
+  - Otherwise uses defaults
+- Writes JSON file into profiles\custom using a sanitized filename
+- Returns the created PSCustomObject, or $null on failure/duplicate
+
+Defaults when not based on anything:
+- Category = "Custom"
+- BuiltIn = $false
+- Services = @{ Disable=@(); Auto=@(); Manual=@() }
+- Startup = @{ Disable=@() }
+- PowerPlan = "Balanced"
+- Privacy/Network/VisualEffects = @{}
+- RegistryTweaks = @()
+
+CLI/menu surfacing ideas:
+- Create custom profile
+- Clone an existing profile
+- Useful for guided menu wizard or structured CLI options
+
+6) Remove-CustomProfile
+Signature:
+- Remove-CustomProfile -Name <string>
+
+Behavior:
+- Refuses to remove built-in profiles
+- Removes matching custom profile from memory and disk
+- If removing the active profile:
+  - Clears active profile
+  - Deletes profiles\active_profile.txt if present
+- Returns:
+  - $true on success
+  - $false if built-in or not found
+
+CLI/menu surfacing ideas:
+- Delete custom profile
+- Needs confirmation in menu/CLI because it removes persisted file
+
+7) Export-Profile
+Signature:
+- Export-Profile -Name <string> -OutputPath <string>
+
+Behavior:
+- Exports a built-in or custom profile to JSON
+- Creates parent directory for OutputPath if needed
+- Returns:
+  - $true on success
+  - $false on failure/not found
+
+CLI/menu surfacing ideas:
+- Export/share profile to a chosen path
+- Backup profile command
+
+8) Import-Profile
+Signature:
+- Import-Profile -FilePath <string> [-AsName <string>]
+
+Behavior:
+- Imports a profile JSON file as a custom profile
+- Fails if the input file does not exist
+- Imported name is:
+  - -AsName value if supplied
+  - otherwise profile.Name from the file
+- Rejects duplicate names across built-in and custom profiles
+- Normalizes missing sections with defaults:
+  - Description defaults to "Imported profile"
+  - Category forced to "Custom"
+  - BuiltIn forced to $false
+  - Services defaults to Disable/Auto/Manual empty arrays
+  - Startup defaults to Disable empty array
+  - PowerPlan defaults to "Balanced"
+  - Privacy/Network/VisualEffects default to empty hashtables
+  - RegistryTweaks defaults to empty array
+- Saves imported profile JSON into profiles\custom
+- Returns imported PSCustomObject on success, otherwise $null
+
+CLI/menu surfacing ideas:
+- Import profile from JSON
+- Import and rename
+- Good fit for "profile import" command
+
+9) Compare-Profiles
+Signature:
+- Compare-Profiles -ProfileA <string> -ProfileB <string>
+
+Behavior:
+- Compares two named profiles, built-in or custom
+- Returns $null if either profile is missing
+- Returns PSCustomObject with:
+  - ProfileA
+  - ProfileB
+  - Differences
+  - TotalDiffs
+  - Identical
+- Difference entries are PSCustomObjects with:
+  - Section
+  - Value
+  - InA
+  - InB
+- Current comparison coverage is limited to:
+  - Services.Disable
+  - Services.Auto
+  - PowerPlan
+  - Startup.Disable
+  - RegistryTweaks count only
+- Does not currently compare:
+  - Services.Manual
+  - Privacy
+  - Network
+  - VisualEffects values
+  - Actual registry tweak contents beyond count
+
+CLI/menu surfacing ideas:
+- Compare two profiles before applying
+- "profile diff <a> <b>" command
+- Should describe comparison as partial, not exhaustive
+
+Built-in profile intent summary:
+- Gaming: performance-focused, high performance power plan, low-latency/network-oriented values in data
+- Office: productivity/balanced
+- Multimedia: media/audio optimized
+- Developer: dev tooling oriented
+- Privacy: privacy-focused
+- Performance: maximum performance, Ultimate Performance plan
+- Balanced: near-default behavior
+- Battery: power saving
+
+Safest profile-related features to surface from WinTune.ps1:
+- List profiles via Get-AvailableProfiles
+- Show active profile via Get-ActiveProfile
+- Apply profile via Set-ActiveProfile
+- Preview apply via Set-ActiveProfile -Preview
+- Create/clone custom profile via New-CustomProfile
+- Remove custom profile via Remove-CustomProfile
+- Export profile via Export-Profile
+- Import profile via Import-Profile
+- Compare profiles via Compare-Profiles
+
+Integration cautions:
+- Initialize-ProfileManager should be called first with the project data directory before using other profile functions
+- Applying a profile makes system changes:
+  - service startup types
+  - stopping running services
+  - power plan activation
+  - registry writes
+  - some visual effects registry writes
+- Parent should likely require elevation/admin for apply operations
+- Parent should not claim full implementation of Startup/Privacy/Network profile data during apply, because that logic is not present in Set-ActiveProfile
